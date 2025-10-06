@@ -1,5 +1,3 @@
-// frontend/src/pages/AddCustomerPage.jsx
-
 import React, { useState } from 'react';
 import api from '../api/api.js';
 import { useNavigate } from 'react-router-dom';
@@ -7,9 +5,11 @@ import { useNavigate } from 'react-router-dom';
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 
+// Import our notification utility
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+
 const AddCustomerPage = () => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -18,12 +18,19 @@ const AddCustomerPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     try {
       await api.post('/customers', formData);
-      navigate('/customers');
+      
+      // 1. Show the success message
+      showSuccessToast('Customer added successfully!');
+      
+      // 2. Wait 1 second before navigating to allow the toast to be seen
+      setTimeout(() => {
+        navigate('/customers');
+      }, 1000); 
+
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to add customer.');
+      showErrorToast(err, 'Failed to add customer.');
     }
   };
 
@@ -38,8 +45,6 @@ const AddCustomerPage = () => {
             <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} />
             <TextField fullWidth label="Email (Optional)" name="email" type="email" value={formData.email} onChange={handleChange} sx={{ mb: 2 }} />
             <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} sx={{ mb: 2 }} />
-            
-            {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
             
             <Button type="submit" variant="contained" fullWidth>
                 Save Customer

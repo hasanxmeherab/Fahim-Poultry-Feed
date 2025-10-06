@@ -1,13 +1,15 @@
-// frontend/src/pages/LoginPage.jsx
-
 import React, { useState } from 'react';
 import api from '../api/api';
-import ForgotPasswordModal from '../components/ForgotPasswordModal'; // Import the new component
+import ForgotPasswordModal from '../components/ForgotPasswordModal';
+
+// MUI Imports
+import { Box, Paper, Typography, TextField, Button, Link } from '@mui/material';
+import BoltIcon from '@mui/icons-material/Bolt'; // A suitable icon from MUI
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false); // State to control the modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -27,59 +29,99 @@ const LoginPage = () => {
 
   return (
     <>
-      <style>{`
-        .login-page-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f7f9fc; }
-        .login-card { width: 100%; max-width: 400px; background: #ffffff; padding: 40px 30px; border-radius: 16px; box-shadow: 0 20px 50px rgba(0, 8, 20, 0.1); text-align: center; border: 1px solid #e5e7eb; }
-        .login-icon { width: 60px; height: 60px; margin: 0 auto 20px; background-color: #e6f4ea; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
-        .login-icon svg { width: 32px; height: 32px; color: #27ae60; }
-        .login-header { margin-bottom: 30px; }
-        .login-header h1 { font-size: 1.8rem; color: #1a2c3a; margin: 0 0 8px 0; border: none; font-weight: 600; }
-        .login-header p { font-size: 1rem; color: #6b7280; margin: 0; }
-        .input-group { margin-bottom: 20px; text-align: left; }
-        .input-group label { display: block; font-size: 0.875rem; color: #4b5563; margin-bottom: 8px; font-weight: 500; }
-        .input-group input { width: 100%; padding: 12px 15px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s; box-sizing: border-box; }
-        .input-group input:focus { outline: none; border-color: #27ae60; box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1); }
-        .login-button { width: 100%; padding: 14px; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s, transform 0.1s; }
-        .login-button:hover { background: #229954; transform: translateY(-2px); }
-        .login-button:active { transform: translateY(0); }
-        .error-message { color: #ef4444; text-align: center; margin-top: 15px; font-size: 0.875rem; }
-        .forgot-password { display: block; text-align: right; margin-top: 12px; font-size: 0.875rem; color: #27ae60; text-decoration: none; cursor: pointer; font-weight: 500; }
-        .forgot-password:hover { text-decoration: underline; }
-      `}</style>
-      
       <ForgotPasswordModal 
         isOpen={isModalOpen}
         onRequestClose={() => setIsModalOpen(false)}
       />
 
-      <div className="login-page-container">
-        <div className="login-card">
-          <div className="login-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-            </svg>
-          </div>
-          <div className="login-header">
-            <h1>Fahim Poultry Feed</h1>
-            <p>Admin Login</p>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <label htmlFor="username">Username</label>
-              <input id="username" type="text" name="username" required onChange={handleChange} />
-            </div>
-            <div className="input-group">
-              <label htmlFor="password">Password</label>
-              <input id="password" type="password" name="password" required onChange={handleChange} />
-            </div>
-            {error && <p className="error-message">{error}</p>}
-            <button type="submit" className="login-button">Log In</button>
-            <a onClick={() => setIsModalOpen(true)} className="forgot-password">
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '100vh', 
+          bgcolor: '#f7f9fc' 
+        }}
+      >
+        <Paper 
+          elevation={4}
+          sx={{ 
+            p: { xs: 3, sm: 4 }, 
+            width: '100%', 
+            maxWidth: '400px', 
+            textAlign: 'center',
+            borderRadius: '16px',
+          }}
+        >
+          <Box 
+            sx={{
+              mx: 'auto',
+              mb: 2,
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              bgcolor: 'primary.lightest', // Using theme colors
+              color: 'primary.main'
+            }}
+          >
+            <BoltIcon sx={{ fontSize: 32 }} />
+          </Box>
+
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
+            Fahim Poultry Feed
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+            Admin Login
+          </Typography>
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <TextField
+              fullWidth
+              margin="normal"
+              id="username"
+              name="username"
+              label="Username"
+              onChange={handleChange}
+              required
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              id="password"
+              name="password"
+              label="Password"
+              type="password"
+              onChange={handleChange}
+              required
+            />
+            
+            {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+            
+            <Button 
+              type="submit" 
+              fullWidth 
+              variant="contained"
+              size="large"
+              sx={{ mt: 2, py: 1.5, fontWeight: 600, bgcolor: '#27ae60', '&:hover': { bgcolor: '#229954' } }}
+            >
+              Log In
+            </Button>
+            
+            <Link 
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={() => setIsModalOpen(true)}
+              sx={{ display: 'block', textAlign: 'right', mt: 2, fontWeight: 500 }}
+            >
               Forgot Password?
-            </a>
-          </form>
-        </div>
-      </div>
+            </Link>
+          </Box>
+        </Paper>
+      </Box>
     </>
   );
 };

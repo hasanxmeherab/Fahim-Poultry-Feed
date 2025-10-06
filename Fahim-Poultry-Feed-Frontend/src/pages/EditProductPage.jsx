@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams, useNavigate } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 const EditProductPage = () => {
-  const { id } = useParams(); // Gets the product ID from the URL
+  const { id } = useParams();
   const navigate = useNavigate();
-
   const [formData, setFormData] = useState({ name: '', sku: '', price: '' });
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Fetch the specific product's data when the page loads
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const response = await api.get(`/products/${id}`);
         setFormData(response.data);
       } catch (err) {
-        setError('Failed to fetch product data.');
+        showErrorToast(err, 'Failed to fetch product data.');
       } finally {
         setIsLoading(false);
       }
@@ -33,15 +31,20 @@ const EditProductPage = () => {
     e.preventDefault();
     try {
       await api.patch(`/products/${id}`, formData);
-      alert('Product updated successfully!');
-      navigate('/inventory'); // Go back to the inventory list
+      showSuccessToast('Product updated successfully!');
+      
+      setTimeout(() => {
+        navigate('/inventory');
+      }, 1000); // 1-second delay for toast visibility
+
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update product.');
+      showErrorToast(err, 'Failed to update product.');
     }
   };
 
   if (isLoading) return <p>Loading product details...</p>;
-  if (error && !formData.name) return <p style={{ color: 'red' }}>{error}</p>;
+  
+  if (!formData.name) return <p>Could not load product data.</p>;
 
   return (
     <div>
@@ -59,7 +62,6 @@ const EditProductPage = () => {
           <label>Price (TK):</label>
           <input type="number" name="price" value={formData.price} onChange={handleChange} required min="0" step="0.01" />
         </div>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
         <button type="submit" className="button-primary">Save Changes</button>
       </form>
     </div>

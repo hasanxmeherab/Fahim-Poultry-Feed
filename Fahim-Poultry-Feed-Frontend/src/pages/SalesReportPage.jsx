@@ -1,5 +1,3 @@
-// frontend/src/pages/SalesReportPage.jsx
-
 import React, { useState } from 'react';
 import api from '../api/api';
 
@@ -7,30 +5,33 @@ import api from '../api/api';
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress
+    TableRow, Paper
 } from '@mui/material';
+
+// Import our notification utility
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 const SalesReportPage = () => {
     const [reportData, setReportData] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
 
     const handleGenerateReport = async () => {
         if (!startDate || !endDate) {
-            setError('Please select both a start and end date.');
+            // Use the utility for validation errors too
+            showErrorToast({ message: 'Please select both a start and end date.' });
             return;
         }
         setIsLoading(true);
-        setError(null);
         setReportData(null);
 
         try {
             const response = await api.get(`/reports/sales?startDate=${startDate}&endDate=${endDate}`);
             setReportData(response.data);
+            showSuccessToast('Report generated successfully!');
         } catch (err) {
-            setError('Failed to generate report. Please try again.');
+            showErrorToast(err, 'Failed to generate report.');
         } finally {
             setIsLoading(false);
         }
@@ -50,7 +51,7 @@ const SalesReportPage = () => {
                 </Button>
             </Paper>
 
-            {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
+            {/* Error messages are now handled by toasts */}
             
             {reportData && (
                 <Paper sx={{ mt: 3 }}>
@@ -66,7 +67,7 @@ const SalesReportPage = () => {
                     <TableContainer>
                         <Table>
                             <TableHead>
-                                <TableRow sx={{ '& th': { backgroundColor: '#f4f6fobia8', fontWeight: 'bold' } }}>
+                                <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
                                     <TableCell>Date & Time</TableCell>
                                     <TableCell>Customer</TableCell>
                                     <TableCell align="right">Amount (TK)</TableCell>

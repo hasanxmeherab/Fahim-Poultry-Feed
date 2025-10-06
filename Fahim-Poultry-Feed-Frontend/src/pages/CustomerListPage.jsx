@@ -1,5 +1,3 @@
-// frontend/src/pages/CustomerListPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
@@ -10,6 +8,9 @@ import {
     TableBody, TableCell, TableContainer, TableHead,
     TableRow, Paper, CircularProgress, Modal, Fade
 } from '@mui/material';
+
+// Import our standardized notification utility
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 const modalStyle = {
     position: 'absolute',
@@ -26,13 +27,12 @@ const modalStyle = {
 const CustomerListPage = () => {
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState(null);
     const [modalType, setModalType] = useState('');
     const [amount, setAmount] = useState('');
-    const [modalError, setModalError] = useState('');
+    const [modalError, setModalError] = useState(''); // Kept for form validation feedback
 
     useEffect(() => {
         setIsLoading(true);
@@ -40,10 +40,9 @@ const CustomerListPage = () => {
           api.get(`/customers?search=${searchTerm}`)
             .then(response => {
               setCustomers(response.data);
-              setError(null);
             })
             .catch(err => {
-              setError('Failed to fetch customers.');
+              showErrorToast(err, 'Failed to fetch customers.');
               setCustomers([]);
             })
             .finally(() => {
@@ -67,9 +66,12 @@ const CustomerListPage = () => {
         e.preventDefault();
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount) || numAmount <= 0) {
-            setModalError("Please enter a valid amount.");
+            setModalError("Please enter a valid positive amount.");
             return;
         }
+        
+        // Clear form validation error before API call
+        setModalError('');
 
         const endpoint = `/customers/${currentCustomer._id}/${modalType}`;
         try {
@@ -77,20 +79,21 @@ const CustomerListPage = () => {
             const updatedCustomer = response.data;
             
             setCustomers(customers.map(c => c._id === updatedCustomer._id ? updatedCustomer : c));
-            alert(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
+            showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
             closeModal();
         } catch (err) {
-            setModalError(err.response?.data?.error || `Failed to process ${modalType}.`);
+            showErrorToast(err, `Failed to process ${modalType}.`);
         }
     };
   
     const handleDelete = async (customerId) => {
-        if (window.confirm('Are you sure you want to delete this customer?')) {
+        if (window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
             try {
                 await api.delete(`/customers/${customerId}`);
                 setCustomers(customers.filter(c => c._id !== customerId));
+                showSuccessToast('Customer deleted successfully!');
             } catch (err) {
-                alert('Failed to delete customer.');
+                showErrorToast(err, 'Failed to delete customer.');
             }
         }
     };
@@ -110,9 +113,8 @@ const CustomerListPage = () => {
             />
 
             {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>}
-            {error && <Typography color="error">{error}</Typography>}
 
-            {!isLoading && !error && (
+            {!isLoading && (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
