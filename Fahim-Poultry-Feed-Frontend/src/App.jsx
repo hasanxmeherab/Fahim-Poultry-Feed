@@ -3,6 +3,8 @@ import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-d
 import api from './api/api';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -157,6 +159,7 @@ const AppContent = () => {
 
     return (
         <div className="app-layout">
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
             <style>{`
                 :root { --sidebar-width: 240px; --sidebar-width-collapsed: 70px; } 
                 body { margin: 0; background-color: #f7f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 
