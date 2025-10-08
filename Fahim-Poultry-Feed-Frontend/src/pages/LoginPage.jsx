@@ -4,7 +4,7 @@ import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
 // MUI Imports
 import { Box, Paper, Typography, TextField, Button, Link } from '@mui/material';
-import BoltIcon from '@mui/icons-material/Bolt'; // A suitable icon from MUI
+import BoltIcon from '@mui/icons-material/Bolt';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
@@ -40,7 +40,8 @@ const LoginPage = () => {
           justifyContent: 'center', 
           alignItems: 'center', 
           minHeight: '100vh', 
-          bgcolor: '#f7f9fc' 
+          bgcolor: '#f7f9fc',
+          position: 'relative' // Needed for absolute positioning of the text
         }}
       >
         <Paper 
@@ -63,7 +64,7 @@ const LoginPage = () => {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              bgcolor: 'primary.lightest', // Using theme colors
+              bgcolor: 'primary.lightest',
               color: 'primary.main'
             }}
           >
@@ -121,6 +122,24 @@ const LoginPage = () => {
             </Link>
           </Box>
         </Paper>
+
+        {/* --- ADDED THIS NEW BOX FOR THE TEXT --- */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: '2rem', // Positioned 2rem from the bottom
+            width: '100%',
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            © 2025 Fahim Poultry Feed | All rights reserved
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Developed by Meherab Hasan Fahim
+          </Typography>
+        </Box>
+        
       </Box>
     </>
   );

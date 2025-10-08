@@ -148,16 +148,18 @@ const Footer = () => {
         <Box 
             component="footer" 
             sx={{
-                mt: 4,
                 py: 2,
-                px: 2,
+                // ADD responsive horizontal padding
+                px: { xs: 2, md: '15%' }, 
                 borderTop: '1px solid #e0e0e0',
                 bgcolor: '#f7f9fc',
                 display: 'flex',
-                justifyContent: 'center',
+                // CHANGE back to space-between
+                justifyContent: 'space-between', 
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: 2
+                gap: 2,
+                flexShrink: 0
             }}
         >
             <Typography variant="body2" color="text.secondary">
