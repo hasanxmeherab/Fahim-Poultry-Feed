@@ -11,7 +11,7 @@
       "config": {
         "installCommand": "cd Fahim-Poultry-Feed-Frontend && npm install",
         "buildCommand": "cd Fahim-Poultry-Feed-Frontend && npm run build",
-        "outputDirectory": "Fahim-Poultry-Feed-Frontend/dist"
+        "outputDirectory": "dist"
       }
     }
   ],
