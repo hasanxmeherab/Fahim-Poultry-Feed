@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
 
-// --- MUI Imports ---
+// MUI Imports (Dialog components added)
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade
+    TableRow, Paper, CircularProgress, Modal, Fade,
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
-// Import our standardized notification utility
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
-// Style for the MUI Modal
 const modalStyle = {
     position: 'absolute',
     top: '50%',
@@ -29,15 +28,17 @@ const ProductListPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentProduct, setCurrentProduct] = useState(null);
-    const [modalType, setModalType] = useState(''); // 'add' or 'remove'
+    const [modalType, setModalType] = useState('');
     const [quantity, setQuantity] = useState('');
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [formError, setFormError] = useState(null); // Keep this for modal-specific form validation
-
-    // --- State for Inline Editing ---
+    const [formError, setFormError] = useState(null);
     const [editRowId, setEditRowId] = useState(null);
     const [editFormData, setEditFormData] = useState({});
+
+    // State for the delete confirmation dialog
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
 
     useEffect(() => {
         setIsLoading(true);
@@ -47,7 +48,6 @@ const ProductListPage = () => {
               setProducts(response.data);
             })
             .catch(err => {
-              // CORRECTED: Use toast notification
               showErrorToast(err, 'Failed to fetch products.');
               setProducts([]);
             })
@@ -88,30 +88,32 @@ const ProductListPage = () => {
         try {
           const response = await api.patch(`/products/${currentProduct._id}/${endpoint}`, body);
           setProducts(products.map(p => p._id === currentProduct._id ? response.data : p));
-          // CORRECTED: Use toast notification
           showSuccessToast(`Stock ${isRemove ? 'removed' : 'added'} successfully!`);
           closeModal();
         } catch (err) {
-          // CORRECTED: Use toast notification
           showErrorToast(err, `Failed to process stock change.`);
         }
     };
 
-    const handleDelete = async (productId) => {
-        if (window.confirm('Are you sure you want to delete this product?')) {
-            try {
-                await api.delete(`/products/${productId}`);
-                setProducts(products.filter(p => p._id !== productId));
-                // CORRECTED: Use toast notification
-                showSuccessToast('Product deleted successfully!');
-            } catch (err) {
-                // CORRECTED: Use toast notification
-                showErrorToast(err, 'Failed to delete product.');
-            }
+    const handleDeleteClick = (product) => {
+        setProductToDelete(product);
+        setOpenDeleteDialog(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!productToDelete) return;
+        try {
+            await api.delete(`/products/${productToDelete._id}`);
+            setProducts(products.filter(p => p._id !== productToDelete._id));
+            showSuccessToast('Product deleted successfully!');
+        } catch (err) {
+            showErrorToast(err, 'Failed to delete product.');
+        } finally {
+            setOpenDeleteDialog(false);
+            setProductToDelete(null);
         }
-    }; 
-    
-    // --- Inline Editing Functions ---
+    };
+
     const handleEditClick = (product) => {
         setEditRowId(product._id);
         setEditFormData({
@@ -139,10 +141,8 @@ const ProductListPage = () => {
             );
             setProducts(updatedProducts);
             setEditRowId(null);
-            // CORRECTED: Use toast notification
             showSuccessToast('Product updated successfully!');
         } catch (err) {
-            // CORRECTED: Use toast notification
             showErrorToast(err, "Could not update product.");
         }
     };
@@ -166,10 +166,7 @@ const ProductListPage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>}
-            
-            {/* The old apiError display is now fully removed */}
-            {!isLoading && (
+            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : (
                 <TableContainer component={Paper}>
                     <Table sx={{ tableLayout: 'fixed' }}>
                         <TableHead>
@@ -199,19 +196,9 @@ const ProductListPage = () => {
                                             <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
                                         ) : ( product.price.toFixed(2) )}
                                     </TableCell>
-                                    {/* Quantity Cell: Show a DISABLED TextField in edit mode */}
                                     <TableCell>
                                         {editRowId === product._id ? (
-                                            <TextField 
-                                                type="number" 
-                                                name="quantity" 
-                                                value={editFormData.quantity} 
-                                                onChange={handleEditFormChange} 
-                                                size="small" 
-                                                variant="standard" 
-                                                fullWidth 
-                                                disabled // <-- ADD THIS PROP
-                                            />
+                                            <TextField type="number" name="quantity" value={editFormData.quantity} onChange={handleEditFormChange} size="small" variant="standard" fullWidth disabled />
                                         ) : ( product.quantity )}
                                     </TableCell>
                                     <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -225,7 +212,7 @@ const ProductListPage = () => {
                                                 <Button onClick={() => openModal(product, 'add')} variant="contained" size="small">Add Stock</Button>
                                                 <Button onClick={() => openModal(product, 'remove')} variant="outlined" size="small" color="warning">Remove</Button>
                                                 <Button onClick={() => handleEditClick(product)} variant="outlined" size="small" color="info">Edit</Button>
-                                                <Button onClick={() => handleDelete(product._id)} variant="outlined" size="small" color="error">Delete</Button>
+                                                <Button onClick={() => handleDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
                                             </>
                                         )}
                                     </TableCell>
@@ -268,6 +255,24 @@ const ProductListPage = () => {
                     </Box>
                 </Fade>
             </Modal>
+
+            <Dialog
+                open={openDeleteDialog}
+                onClose={() => setOpenDeleteDialog(false)}
+            >
+                <DialogTitle>{"Confirm Deletion"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete the product "{productToDelete?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmDelete} color="error" autoFocus>
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

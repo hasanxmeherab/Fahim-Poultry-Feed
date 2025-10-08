@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
 
-// MUI Imports
+// MUI Imports (add Dialog components)
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade
+    TableRow, Paper, CircularProgress, Modal, Fade,
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
-// Import our standardized notification utility
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 const modalStyle = {
@@ -32,22 +32,19 @@ const CustomerListPage = () => {
     const [currentCustomer, setCurrentCustomer] = useState(null);
     const [modalType, setModalType] = useState('');
     const [amount, setAmount] = useState('');
-    const [modalError, setModalError] = useState(''); // Kept for form validation feedback
+    const [modalError, setModalError] = useState('');
+
+    // State for the delete confirmation dialog
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [customerToDelete, setCustomerToDelete] = useState(null);
 
     useEffect(() => {
         setIsLoading(true);
         const timerId = setTimeout(() => {
           api.get(`/customers?search=${searchTerm}`)
-            .then(response => {
-              setCustomers(response.data);
-            })
-            .catch(err => {
-              showErrorToast(err, 'Failed to fetch customers.');
-              setCustomers([]);
-            })
-            .finally(() => {
-              setIsLoading(false);
-            });
+            .then(response => setCustomers(response.data))
+            .catch(err => showErrorToast(err, 'Failed to fetch customers.'))
+            .finally(() => setIsLoading(false));
         }, 500);
         return () => clearTimeout(timerId);
     }, [searchTerm]);
@@ -69,16 +66,11 @@ const CustomerListPage = () => {
             setModalError("Please enter a valid positive amount.");
             return;
         }
-        
-        // Clear form validation error before API call
         setModalError('');
-
         const endpoint = `/customers/${currentCustomer._id}/${modalType}`;
         try {
             const response = await api.patch(endpoint, { amount: numAmount });
-            const updatedCustomer = response.data;
-            
-            setCustomers(customers.map(c => c._id === updatedCustomer._id ? updatedCustomer : c));
+            setCustomers(customers.map(c => c._id === response.data._id ? response.data : c));
             showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
             closeModal();
         } catch (err) {
@@ -86,15 +78,22 @@ const CustomerListPage = () => {
         }
     };
   
-    const handleDelete = async (customerId) => {
-        if (window.confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
-            try {
-                await api.delete(`/customers/${customerId}`);
-                setCustomers(customers.filter(c => c._id !== customerId));
-                showSuccessToast('Customer deleted successfully!');
-            } catch (err) {
-                showErrorToast(err, 'Failed to delete customer.');
-            }
+    const handleDeleteClick = (customer) => {
+        setCustomerToDelete(customer);
+        setOpenDeleteDialog(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!customerToDelete) return;
+        try {
+            await api.delete(`/customers/${customerToDelete._id}`);
+            setCustomers(customers.filter(c => c._id !== customerToDelete._id));
+            showSuccessToast('Customer deleted successfully!');
+        } catch (err) {
+            showErrorToast(err, 'Failed to delete customer.');
+        } finally {
+            setOpenDeleteDialog(false);
+            setCustomerToDelete(null);
         }
     };
 
@@ -112,9 +111,7 @@ const CustomerListPage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>}
-
-            {!isLoading && (
+            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
@@ -141,7 +138,7 @@ const CustomerListPage = () => {
                                         <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
                                         <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
                                         <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                        <Button onClick={() => handleDelete(customer._id)} variant="outlined" size="small" color="error">Delete</Button>
+                                        <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -157,14 +154,7 @@ const CustomerListPage = () => {
                             {modalType === 'deposit' ? 'Make a Deposit' : 'Make a Withdrawal'} for {currentCustomer?.name}
                         </Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth autoFocus margin="dense" label="Amount" type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                error={!!modalError}
-                                helperText={modalError}
-                                required
-                            />
+                            <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={closeModal}>Cancel</Button>
                                 <Button type="submit" variant="contained">Confirm</Button>
@@ -173,6 +163,24 @@ const CustomerListPage = () => {
                     </Box>
                 </Fade>
             </Modal>
+
+            <Dialog
+                open={openDeleteDialog}
+                onClose={() => setOpenDeleteDialog(false)}
+            >
+                <DialogTitle>{"Confirm Deletion"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete the customer "{customerToDelete?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmDelete} color="error" autoFocus>
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

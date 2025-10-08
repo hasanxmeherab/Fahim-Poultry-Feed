@@ -3,6 +3,9 @@ import api from '../api/api.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
+// MUI Imports
+import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
+
 const EditProductPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -42,29 +45,53 @@ const EditProductPage = () => {
     }
   };
 
-  if (isLoading) return <p>Loading product details...</p>;
-  
-  if (!formData.name) return <p>Could not load product data.</p>;
+  if (isLoading) {
+    return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+  }
 
   return (
-    <div>
-      <h1>Edit Product</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Product Name:</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} required />
-        </div>
-        <div>
-          <label>SKU:</label>
-          <input type="text" name="sku" value={formData.sku} onChange={handleChange} required />
-        </div>
-        <div>
-          <label>Price (TK):</label>
-          <input type="number" name="price" value={formData.price} onChange={handleChange} required min="0" step="0.01" />
-        </div>
-        <button type="submit" className="button-primary">Save Changes</button>
-      </form>
-    </div>
+    <Box sx={{ maxWidth: '600px', margin: 'auto', p: 3 }}>
+        <Paper component="form" onSubmit={handleSubmit} noValidate sx={{ p: 3 }}>
+            <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+                Edit Product
+            </Typography>
+            
+            <TextField
+                fullWidth
+                label="Product Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                sx={{ mb: 2 }}
+            />
+            
+            <TextField
+                fullWidth
+                label="SKU (Stock Keeping Unit)"
+                name="sku"
+                value={formData.sku}
+                onChange={handleChange}
+                required
+                sx={{ mb: 2 }}
+            />
+
+            <TextField
+                fullWidth
+                label="Price (TK)"
+                name="price"
+                type="number"
+                value={formData.price}
+                onChange={handleChange}
+                required
+                sx={{ mb: 2 }}
+            />
+            
+            <Button type="submit" variant="contained" fullWidth>
+                Save Changes
+            </Button>
+        </Paper>
+    </Box>
   );
 };
 

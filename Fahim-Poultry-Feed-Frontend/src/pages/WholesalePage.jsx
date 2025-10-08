@@ -1,17 +1,17 @@
-// frontend/src/pages/WholesalePage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { Link } from 'react-router-dom';
 
-// --- MUI Imports ---
+// MUI Imports (Dialog components added)
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade
+    TableRow, Paper, CircularProgress, Modal, Fade,
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
-// Style for the MUI Modal
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+
 const modalStyle = {
     position: 'absolute',
     top: '50%',
@@ -25,7 +25,6 @@ const modalStyle = {
 };
 
 const WholesalePage = () => {
-    // --- All your state and logic functions remain exactly the same ---
     const [buyers, setBuyers] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -37,9 +36,16 @@ const WholesalePage = () => {
     const [amount, setAmount] = useState('');
     const [modalError, setModalError] = useState('');
 
+    // State for Buyer delete dialog
+    const [openBuyerDialog, setOpenBuyerDialog] = useState(false);
+    const [buyerToDelete, setBuyerToDelete] = useState(null);
+
+    // State for Product delete dialog
+    const [openProductDialog, setOpenProductDialog] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
+
     const fetchData = async () => {
         try {
-            // Use the search term for buyers only
             const [buyersRes, productsRes] = await Promise.all([
                 api.get(`/wholesale-buyers?search=${searchTerm}`),
                 api.get('/wholesale-products')
@@ -49,6 +55,7 @@ const WholesalePage = () => {
             setError(null);
         } catch (err) {
             setError('Failed to fetch data.');
+            showErrorToast(err, 'Failed to fetch wholesale data.');
         } finally {
             setIsLoading(false);
         }
@@ -62,25 +69,46 @@ const WholesalePage = () => {
         return () => clearTimeout(timerId);
     }, [searchTerm]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this buyer?')) {
-            await api.delete(`/wholesale-buyers/${id}`);
-            fetchData(); // Refetch data to update the list
-        }
+    // --- Buyer Delete Functions ---
+    const handleBuyerDeleteClick = (buyer) => {
+        setBuyerToDelete(buyer);
+        setOpenBuyerDialog(true);
     };
 
-    const handleDeleteProduct = async (productId) => {
-        if (window.confirm('Are you sure you want to delete this product?')) {
-            try {
-                await api.delete(`/wholesale-products/${productId}`);
-                // Filter out the deleted product from the state directly
-                setProducts(products.filter(p => p._id !== productId));
-            } catch (err) {
-                alert('Failed to delete product.');
-            }
+    const handleConfirmBuyerDelete = async () => {
+        if (!buyerToDelete) return;
+        try {
+            await api.delete(`/wholesale-buyers/${buyerToDelete._id}`);
+            setBuyers(buyers.filter(b => b._id !== buyerToDelete._id));
+            showSuccessToast('Buyer deleted successfully!');
+        } catch (err) {
+            showErrorToast(err, 'Failed to delete buyer.');
+        } finally {
+            setOpenBuyerDialog(false);
+            setBuyerToDelete(null);
         }
     };
+    
+    // --- Product Delete Functions ---
+    const handleProductDeleteClick = (product) => {
+        setProductToDelete(product);
+        setOpenProductDialog(true);
+    };
 
+    const handleConfirmProductDelete = async () => {
+        if (!productToDelete) return;
+        try {
+            await api.delete(`/wholesale-products/${productToDelete._id}`);
+            setProducts(products.filter(p => p._id !== productToDelete._id));
+            showSuccessToast('Product deleted successfully!');
+        } catch (err) {
+            showErrorToast(err, 'Failed to delete product.');
+        } finally {
+            setOpenProductDialog(false);
+            setProductToDelete(null);
+        }
+    };
+    
     const openModal = (buyer, type) => {
         setCurrentBuyer(buyer);
         setModalType(type);
@@ -99,22 +127,17 @@ const WholesalePage = () => {
             return;
         }
         const endpoint = `/wholesale-buyers/${currentBuyer._id}/${modalType}`;
-      try {
-        const response = await api.patch(endpoint, { amount: numAmount });
-        const updatedBuyer = response.data;
-
-        setBuyers(buyers.map(buyer => 
-            buyer._id === updatedBuyer._id ? updatedBuyer : buyer
-        ));
-        
-        alert(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
-        closeModal();
-
-    } catch (err) { 
-        setModalError(err.response?.data?.message || 'Transaction failed.');
-    }
-};
-    // --- End of unchanged logic ---
+        try {
+            const response = await api.patch(endpoint, { amount: numAmount });
+            setBuyers(buyers.map(buyer => 
+                buyer._id === response.data._id ? response.data : buyer
+            ));
+            showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
+            closeModal();
+        } catch (err) { 
+            showErrorToast(err, 'Transaction failed.');
+        }
+    };
 
     return (
         <Box sx={{ padding: { xs: 1, sm: 2, md: 3 } }}>
@@ -134,10 +157,7 @@ const WholesalePage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>}
-            {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
-
-            {!isLoading && (
+            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : error ? <Typography color="error">{error}</Typography> : (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
@@ -166,7 +186,7 @@ const WholesalePage = () => {
                                         <Button onClick={() => openModal(buyer, 'deposit')} variant="contained" size="small">Deposit</Button>
                                         <Button onClick={() => openModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
                                         <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                        <Button onClick={() => handleDelete(buyer._id)} variant="outlined" size="small" color="error">Delete</Button>
+                                        <Button onClick={() => handleBuyerDeleteClick(buyer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -196,7 +216,7 @@ const WholesalePage = () => {
                                 <TableCell>{product.name}</TableCell>
                                 <TableCell sx={{ display: 'flex', gap: 1 }}>
                                     <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                    <Button onClick={() => handleDeleteProduct(product._id)} variant="outlined" size="small" color="error">Delete</Button>
+                                    <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -227,6 +247,32 @@ const WholesalePage = () => {
                     </Box>
                 </Fade>
             </Modal>
+
+            <Dialog open={openBuyerDialog} onClose={() => setOpenBuyerDialog(false)}>
+                <DialogTitle>{"Confirm Buyer Deletion"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete the buyer "{buyerToDelete?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenBuyerDialog(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmBuyerDelete} color="error" autoFocus>Delete</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={openProductDialog} onClose={() => setOpenProductDialog(false)}>
+                <DialogTitle>{"Confirm Product Deletion"}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete the product "{productToDelete?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenProductDialog(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmProductDelete} color="error" autoFocus>Delete</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
