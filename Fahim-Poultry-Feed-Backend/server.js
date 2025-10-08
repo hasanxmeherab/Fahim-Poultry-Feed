@@ -2,12 +2,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const transactionRoutes = require('./routes/transactionRoutes');
-const dashboardRoutes = require('./routes/dashboardRoutes');
-const reportRoutes = require('./routes/reportRoutes');
+
 require('dotenv').config(); // Load environment variables from .env file
 
 // Import routes
+const transactionRoutes = require('./routes/transactionRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const batchRoutes = require('./routes/batchRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const productRoutes = require('./routes/productRoutes');
