@@ -6,11 +6,12 @@ import { Link } from 'react-router-dom';
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade,
+    TableRow, Paper, Modal, Fade,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+import TableSkeleton from '../components/TableSkeleton.jsx';
 
 const modalStyle = {
     position: 'absolute',
@@ -77,7 +78,7 @@ const CustomerListPage = () => {
             showErrorToast(err, `Failed to process ${modalType}.`);
         }
     };
-  
+ 
     const handleDeleteClick = (customer) => {
         setCustomerToDelete(customer);
         setOpenDeleteDialog(true);
@@ -111,19 +112,23 @@ const CustomerListPage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
-                                <TableCell>Name</TableCell>
-                                <TableCell>Phone</TableCell>
-                                <TableCell>Balance (TK)</TableCell>
-                                <TableCell sx={{ width: '40%' }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {customers.map((customer) => (
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Phone</TableCell>
+                            <TableCell>Balance (TK)</TableCell>
+                            <TableCell sx={{ width: '40%' }}>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableSkeleton columns={4} />
+                        ) : (
+                            // --- THIS BLOCK IS CORRECTED ---
+                            // The extra curly braces around the map function have been removed.
+                            customers.map((customer) => (
                                 <TableRow key={customer._id} hover>
                                     <TableCell>
                                         <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
@@ -141,11 +146,11 @@ const CustomerListPage = () => {
                                         <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
             <Modal open={modalIsOpen} onClose={closeModal} closeAfterTransition>
                 <Fade in={modalIsOpen}>

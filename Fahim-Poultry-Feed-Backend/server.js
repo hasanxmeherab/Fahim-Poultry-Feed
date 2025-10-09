@@ -36,10 +36,24 @@ app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/wholesale-buyers', wholesaleBuyerRoutes);
 app.use('/api/wholesale-products', wholesaleProductRoutes);
-//console.log("--- Server is starting with the LATEST code definitions... ---");
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Successfully connected to MongoDB!'))
-  .catch((err) => console.error('Database connection failed:', err));
 
-module.exports = app;
+
+
+const startServer = async () => {
+  try {
+    // Use await to ensure the connection is complete before proceeding
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('Successfully connected to MongoDB! データベースに接続しました');
+
+    // Start the server only after a successful DB connection
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT} 🚀`);
+    });
+  } catch (err) {
+    console.error('Database connection failed:', err);
+    process.exit(1); // Exit the process with an error code
+  }
+};
+
+// --- Call the function to start the server ---
+startServer();

@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
 
-// MUI Imports (Dialog components added)
+// MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade,
+    TableRow, Paper, Modal, Fade,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+import TableSkeleton from '../components/TableSkeleton.jsx';
 
 const modalStyle = {
     position: 'absolute',
@@ -35,8 +36,6 @@ const ProductListPage = () => {
     const [formError, setFormError] = useState(null);
     const [editRowId, setEditRowId] = useState(null);
     const [editFormData, setEditFormData] = useState({});
-
-    // State for the delete confirmation dialog
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
 
@@ -166,20 +165,22 @@ const ProductListPage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : (
-                <TableContainer component={Paper}>
-                    <Table sx={{ tableLayout: 'fixed' }}>
-                        <TableHead>
-                            <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
-                                <TableCell sx={{ width: '24%' }}>Product Name</TableCell>
-                                <TableCell sx={{ width: '19%' }}>SKU</TableCell>
-                                <TableCell sx={{ width: '17%' }}>Price (TK)</TableCell>
-                                <TableCell sx={{ width: '13%' }}>In Stock</TableCell>
-                                <TableCell sx={{ width: '30%' }}>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {products.map((product) => (
+            <TableContainer component={Paper}>
+                <Table sx={{ tableLayout: 'fixed' }}>
+                    <TableHead>
+                        <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
+                            <TableCell sx={{ width: '24%' }}>Product Name</TableCell>
+                            <TableCell sx={{ width: '19%' }}>SKU</TableCell>
+                            <TableCell sx={{ width: '17%' }}>Price (TK)</TableCell>
+                            <TableCell sx={{ width: '13%' }}>In Stock</TableCell>
+                            <TableCell sx={{ width: '30%' }}>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableSkeleton columns={5} />
+                        ) : (
+                            products.map((product) => (
                                 <TableRow key={product._id} hover>
                                     <TableCell>
                                         {editRowId === product._id ? (
@@ -217,36 +218,20 @@ const ProductListPage = () => {
                                         )}
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
-            <Modal
-                open={modalIsOpen}
-                onClose={closeModal}
-                aria-labelledby="stock-modal-title"
-                closeAfterTransition
-            >
+            <Modal open={modalIsOpen} onClose={closeModal} aria-labelledby="stock-modal-title" closeAfterTransition>
                 <Fade in={modalIsOpen}>
                     <Box sx={modalStyle}>
                         <Typography id="stock-modal-title" variant="h6" component="h2">
                             {modalType === 'add' ? 'Add Stock' : 'Remove Stock'} for {currentProduct?.name}
                         </Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth
-                                autoFocus
-                                margin="dense"
-                                label="Quantity"
-                                type="number"
-                                value={quantity}
-                                onChange={(e) => setQuantity(e.target.value)}
-                                error={!!formError}
-                                helperText={formError}
-                                required
-                            />
+                            <TextField fullWidth autoFocus margin="dense" label="Quantity" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} error={!!formError} helperText={formError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={closeModal}>Cancel</Button>
                                 <Button type="submit" variant="contained">Confirm</Button>
@@ -256,10 +241,7 @@ const ProductListPage = () => {
                 </Fade>
             </Modal>
 
-            <Dialog
-                open={openDeleteDialog}
-                onClose={() => setOpenDeleteDialog(false)}
-            >
+            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
                 <DialogTitle>{"Confirm Deletion"}</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
@@ -268,9 +250,7 @@ const ProductListPage = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-                    <Button onClick={handleConfirmDelete} color="error" autoFocus>
-                        Delete
-                    </Button>
+                    <Button onClick={handleConfirmDelete} color="error" autoFocus>Delete</Button>
                 </DialogActions>
             </Dialog>
         </Box>

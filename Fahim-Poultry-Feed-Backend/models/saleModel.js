@@ -31,6 +31,7 @@ const saleSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Batch'
     },
+    // Change the 'customer' field
 
 // Add the new 'wholesaleBuyer' field
 wholesaleBuyer: {

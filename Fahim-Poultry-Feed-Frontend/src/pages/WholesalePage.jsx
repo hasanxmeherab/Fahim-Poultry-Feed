@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { Link } from 'react-router-dom';
 
-// MUI Imports (Dialog components added)
+// MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, CircularProgress, Modal, Fade,
+    TableRow, Paper, Modal, Fade,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+import TableSkeleton from '../components/TableSkeleton.jsx';
 
 const modalStyle = {
     position: 'absolute',
@@ -28,48 +29,34 @@ const WholesalePage = () => {
     const [buyers, setBuyers] = useState([]);
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentBuyer, setCurrentBuyer] = useState(null);
     const [modalType, setModalType] = useState('');
     const [amount, setAmount] = useState('');
     const [modalError, setModalError] = useState('');
-
-    // State for Buyer delete dialog
     const [openBuyerDialog, setOpenBuyerDialog] = useState(false);
     const [buyerToDelete, setBuyerToDelete] = useState(null);
-
-    // State for Product delete dialog
     const [openProductDialog, setOpenProductDialog] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
-
-    const fetchData = async () => {
-        try {
-            const [buyersRes, productsRes] = await Promise.all([
-                api.get(`/wholesale-buyers?search=${searchTerm}`),
-                api.get('/wholesale-products')
-            ]);
-            setBuyers(buyersRes.data);
-            setProducts(productsRes.data);
-            setError(null);
-        } catch (err) {
-            setError('Failed to fetch data.');
-            showErrorToast(err, 'Failed to fetch wholesale data.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     useEffect(() => {
         setIsLoading(true);
         const timerId = setTimeout(() => {
-            fetchData();
+            const fetchBuyers = api.get(`/wholesale-buyers?search=${searchTerm}`);
+            const fetchProducts = api.get('/wholesale-products');
+
+            Promise.all([fetchBuyers, fetchProducts])
+                .then(([buyersRes, productsRes]) => {
+                    setBuyers(buyersRes.data);
+                    setProducts(productsRes.data);
+                })
+                .catch(err => showErrorToast(err, 'Failed to fetch wholesale data.'))
+                .finally(() => setIsLoading(false));
         }, 500);
         return () => clearTimeout(timerId);
     }, [searchTerm]);
 
-    // --- Buyer Delete Functions ---
     const handleBuyerDeleteClick = (buyer) => {
         setBuyerToDelete(buyer);
         setOpenBuyerDialog(true);
@@ -89,7 +76,6 @@ const WholesalePage = () => {
         }
     };
     
-    // --- Product Delete Functions ---
     const handleProductDeleteClick = (product) => {
         setProductToDelete(product);
         setOpenProductDialog(true);
@@ -157,20 +143,22 @@ const WholesalePage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            {isLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box> : error ? <Typography color="error">{error}</Typography> : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
-                                <TableCell>Name</TableCell>
-                                <TableCell>Business Name</TableCell>
-                                <TableCell>Phone</TableCell>
-                                <TableCell>Balance (TK)</TableCell>
-                                <TableCell>Actions</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {buyers.map((buyer) => (
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Business Name</TableCell>
+                            <TableCell>Phone</TableCell>
+                            <TableCell>Balance (TK)</TableCell>
+                            <TableCell>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableSkeleton columns={5} />
+                        ) : (
+                            buyers.map((buyer) => (
                                 <TableRow key={buyer._id} hover>
                                     <TableCell>
                                         <Typography component={Link} to={`/wholesale-buyers/${buyer._id}`} sx={{ fontWeight: 'bold', color: '#2C3E50', textDecoration: 'none' }}>
@@ -189,11 +177,11 @@ const WholesalePage = () => {
                                         <Button onClick={() => handleBuyerDeleteClick(buyer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
 
             {/* --- Products Section --- */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 5, mb: 3 }}>
@@ -211,15 +199,19 @@ const WholesalePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {products.map((product) => (
-                            <TableRow key={product._id} hover>
-                                <TableCell>{product.name}</TableCell>
-                                <TableCell sx={{ display: 'flex', gap: 1 }}>
-                                    <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                    <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {isLoading ? (
+                            <TableSkeleton columns={2} />
+                        ) : (
+                            products.map((product) => (
+                                <TableRow key={product._id} hover>
+                                    <TableCell>{product.name}</TableCell>
+                                    <TableCell sx={{ display: 'flex', gap: 1 }}>
+                                        <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                        <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
@@ -231,14 +223,7 @@ const WholesalePage = () => {
                             {modalType === 'deposit' ? 'Make a Deposit' : 'Make a Withdrawal'} for {currentBuyer?.name}
                         </Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth autoFocus margin="dense" label="Amount" type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                error={!!modalError}
-                                helperText={modalError}
-                                required
-                            />
+                            <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={closeModal}>Cancel</Button>
                                 <Button type="submit" variant="contained">Confirm</Button>

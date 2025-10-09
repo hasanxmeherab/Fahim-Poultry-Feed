@@ -11,6 +11,7 @@ import 'react-toastify/dist/ReactToastify.css';
 // MUI Imports for layout and footer
 import { Box, Typography } from '@mui/material';
 
+
 // Core Components
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';

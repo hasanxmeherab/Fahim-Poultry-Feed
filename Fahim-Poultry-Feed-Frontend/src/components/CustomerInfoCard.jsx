@@ -1,4 +1,3 @@
-// frontend/src/components/CustomerInfoCard.jsx
 import React from 'react';
 import { Paper, Typography, Box } from '@mui/material';
 
