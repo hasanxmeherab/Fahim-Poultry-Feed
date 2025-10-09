@@ -1,8 +1,7 @@
-// frontend/src/pages/AddWholesaleProductPage.jsx
-
 import React, { useState } from 'react';
 import api from '../api/api';
 import { useNavigate } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
@@ -16,9 +15,12 @@ const AddWholesaleProductPage = () => {
         e.preventDefault();
         try {
             await api.post('/wholesale-products', { name });
-            navigate('/wholesale');
+            showSuccessToast('Wholesale product added successfully!');
+            setTimeout(() => {
+                navigate('/wholesale');
+                }, 1000);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to add product.');
+            showErrorToast(err, 'Failed to add product.');
         }
     };
 

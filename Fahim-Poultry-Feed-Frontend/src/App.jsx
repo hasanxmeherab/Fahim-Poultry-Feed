@@ -4,6 +4,10 @@ import api from './api/api';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
+//Toast notification
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 // MUI Imports for layout and footer
 import { Box, Typography } from '@mui/material';
 
@@ -189,6 +193,13 @@ const AppContent = () => {
 
     return (
         <div className="app-layout">
+            <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                closeOnClick
+                pauseOnHover
+            />
             <style>{`
                 :root { --sidebar-width: 240px; --sidebar-width-collapsed: 70px; } 
                 body { margin: 0; background-color: #f7f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 

@@ -27,20 +27,11 @@ const saleSchema = new Schema({
     required: true,
   },
 
-  totalAmount: {
-        type: Number,
-        required: true,
-    },
     batch: { 
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Batch'
     },
-    // Change the 'customer' field
-customer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Customer',
-    required: false, // <-- Change to false
-},
+
 // Add the new 'wholesaleBuyer' field
 wholesaleBuyer: {
     type: mongoose.Schema.Types.ObjectId,

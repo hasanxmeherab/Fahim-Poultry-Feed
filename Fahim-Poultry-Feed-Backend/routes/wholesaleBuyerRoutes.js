@@ -15,17 +15,17 @@ const {
 
 // Routes for the base URL (/api/wholesale-buyers)
 router.route('/')
-     .get(getBuyers)
-     .post(createBuyer);
+     .get(protect, getBuyers)
+     .post(protect, createBuyer);
 
 // Routes for a specific buyer by ID (/api/wholesale-buyers/:id)
 router.route('/:id')
-     .get(getBuyerById)
-     .patch(updateBuyer)
-     .delete(deleteBuyer);
+     .get(protect, getBuyerById)
+     .patch(protect, updateBuyer)
+     .delete(protect, deleteBuyer);
 
 // Routes for financial transactions
-router.patch('/:id/deposit', addDepositToBuyer);
-router.patch('/:id/withdrawal', makeWithdrawalFromBuyer);
+router.patch('/:id/deposit', protect, addDepositToBuyer);
+router.patch('/:id/withdrawal', protect, makeWithdrawalFromBuyer);
 
 module.exports = router;

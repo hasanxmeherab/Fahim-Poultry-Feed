@@ -1,8 +1,7 @@
-// frontend/src/pages/EditWholesaleBuyerPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { useNavigate, useParams } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
@@ -35,9 +34,12 @@ const EditWholesaleBuyerPage = () => {
         e.preventDefault();
         try {
             await api.patch(`/wholesale-buyers/${id}`, formData);
-            navigate('/wholesale');
+            showSuccessToast('Wholesale buyer updated successfully!');
+            setTimeout(() => {
+                navigate('/wholesale');
+                }, 1000);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to update buyer.');
+            showErrorToast(err, 'Failed to update buyer.');
         }
     };
     // --- End of preserved logic ---

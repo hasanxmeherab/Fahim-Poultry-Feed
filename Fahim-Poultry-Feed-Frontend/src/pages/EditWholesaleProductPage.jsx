@@ -1,8 +1,7 @@
-// frontend/src/pages/EditWholesaleProductPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams, useNavigate } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
@@ -32,9 +31,12 @@ const EditWholesaleProductPage = () => {
         e.preventDefault();
         try {
             await api.patch(`/wholesale-products/${id}`, { name });
-            navigate('/wholesale');
+            showSuccessToast('Wholesale product updated successfully!');
+            setTimeout(() => {
+                navigate('/wholesale');
+                }, 1000);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to update product.');
+            showErrorToast(err, 'Failed to update product.');
         }
     };
 

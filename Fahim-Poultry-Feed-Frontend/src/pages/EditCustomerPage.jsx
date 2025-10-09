@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams, useNavigate } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
@@ -43,9 +44,14 @@ const EditCustomerPage = () => {
         e.preventDefault();
         try {
             await api.patch(`/customers/${id}`, formData);
+            showSuccessToast('Customer updated successfully!');
+
+            setTimeout(() => {
             navigate('/customers');
+        }, 1000);
+
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to update customer.');
+             showErrorToast(err, 'Failed to update customer.');
         }
     };
 

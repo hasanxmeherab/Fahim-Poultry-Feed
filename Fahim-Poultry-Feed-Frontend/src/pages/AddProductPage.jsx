@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { useNavigate } from 'react-router-dom';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
@@ -52,15 +53,18 @@ const AddProductPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (skuError) { // Prevent submission if there's a known error
-            setSubmitError('Please fix the errors before submitting.');
+            showErrorToast({ message: 'Please fix the SKU error before submitting.' });
             return;
         }
-        setSubmitError(null);
+        //setSubmitError(null);
         try {
             await api.post('/products', formData);
+            showSuccessToast('Product added successfully!');
+           setTimeout(() => {
             navigate('/inventory');
+        }, 1000);
         } catch (err) {
-            setSubmitError(err.response?.data?.error || 'Failed to add product.');
+            showErrorToast(err, 'Failed to add product.');
         }
     };
 
