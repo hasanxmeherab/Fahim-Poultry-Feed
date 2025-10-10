@@ -152,21 +152,20 @@ const CustomerDetailsPage = () => {
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                             <TextField label="Filter by Date" type="date" size="small" value={filterDate} onChange={(e) => { setPage(1); setFilterDate(e.target.value); }} InputLabelProps={{ shrink: true }} />
                             <Button size="small" onClick={() => { setPage(1); setFilterDate(''); }}>Clear</Button>
-                            {batches.length > 0 && (
-                                <FormControl sx={{ minWidth: 250 }} size="small">
-                                    <InputLabel>View Batch</InputLabel>
-                                    <Select value={selectedBatchId} label="View Batch" onChange={(e) => { setPage(1); setFilterDate(''); setSelectedBatchId(e.target.value); }}>
-                                        {batches.map(batch => (
-                                            <MenuItem key={batch._id} value={batch._id}>
-                                                {/* --- THIS IS THE CHANGE --- */}
-                                                Batch #{batch.batchNumber} ({new Date(batch.startDate).toLocaleDateString()})
-                                                {batch.status === 'Active' && ' - Active'}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            )}
-                        </Box>
+                            {batches.length === 0 && (
+                            <Box sx={{ p: 2, mb: 3, textAlign: 'center', bgcolor: 'warning.light' }}>
+                                <Typography variant="h6" sx={{ mb: 1 }}>No Batch Found for this Customer</Typography>
+                                <Button 
+                                    onClick={handleStartNewBatch} 
+                                    variant="contained" 
+                                    color="success" 
+                                    size="large"
+                                >
+                                    Start First Batch Cycle
+                                </Button>
+                            </Box>
+                        )}
+                                                </Box>
                     </Box>
                     <TransactionHistory
                         transactions={transactions}
