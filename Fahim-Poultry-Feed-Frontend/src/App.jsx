@@ -8,9 +8,19 @@ import { Bar } from 'react-chartjs-2';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// MUI Imports for layout and footer
+// MUI Imports
 import { Box, Typography } from '@mui/material';
+import { Card, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
+// --- NEW MUI ICON IMPORTS ---
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import HistoryIcon from '@mui/icons-material/History';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 // Core Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -36,18 +46,12 @@ import WholesaleBuyerDetailsPage from './pages/WholesaleBuyerDetailsPage';
 import AddWholesaleProductPage from './pages/AddWholesaleProductPage';
 import EditWholesaleProductPage from './pages/EditWholesaleProductPage';
 import ErrorPage from './pages/ErrorPage';
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// --- INLINE ICON COMPONENTS ---
-const IconDashboard = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>;
-const IconCustomers = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.952a4.5 4.5 0 119 0M6 10.5a4.5 4.5 0 119 0M6 10.5a4.5 4.5 0 00-4.5 4.5v3.75a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25V15a4.5 4.5 0 00-4.5-4.5H6Z" /></svg>;
-const IconInventory = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5-3.75a9.06 9.06 0 00-4.125-.875 9.06 9.06 0 00-4.125.875m-4.125-.875a9.06 9.06 0 00-4.125.875m16.5 0a9.06 9.06 0 01-4.125.875 9.06 9.06 0 01-4.125-.875" /></svg>;
-const IconMakeSale = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c.51 0 .962-.343 1.087-.835l1.838-5.513a1.125 1.125 0 00-1.087-1.665h-16.5" /></svg>;
-const IconWholesale = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h6M9 11.25h6M9 15.75h6" /></svg>;
-const IconReport = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3Z" /></svg>;
-const IconHistory = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0Z" /></svg>;
-const IconLogout = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>;
+// --- REMOVED: The old block of inline SVG icon components ---
 
+// Using the original, simpler HomePage component from your old version
 const HomePage = () => {
     const [stats, setStats] = useState(null);
     const [chartData, setChartData] = useState(null);
@@ -99,7 +103,6 @@ const HomePage = () => {
                 <div className="stat-card"><h3>Customers with Debt</h3><p>{stats.negativeBalanceCustomers}</p></div>
                 <div className="stat-card"><h3>Products Low in Stock</h3><p>{stats.lowStockProducts}</p></div>
             </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginTop: '40px' }}>
                 <div style={{ background: 'white', padding: '20px', borderRadius: '5px' }}>
                     <h3>Sales Trend</h3>
@@ -116,7 +119,6 @@ const HomePage = () => {
                     </ol>
                 </div>
             </div>
-
             <h2>Recent Transactions</h2>
             <table>
                 <thead><tr><th>Date</th><th>Type</th><th>Details</th></tr></thead>
@@ -126,23 +128,25 @@ const HomePage = () => {
     );
 };
 
+
 const Sidebar = ({ handleLogout }) => {
     return (
         <aside className="sidebar">
             <div className="sidebar-header"><h3>Fahim Poultry Feed</h3></div>
             <nav className="sidebar-nav">
                 <ul>
-                    <li><NavLink to="/"><span className="icon"><IconDashboard /></span><span>Dashboard</span></NavLink></li>
-                    <li><NavLink to="/customers"><span className="icon"><IconCustomers /></span><span>Customers</span></NavLink></li>
-                    <li><NavLink to="/inventory"><span className="icon"><IconInventory /></span><span>Inventory</span></NavLink></li>
-                    <li><NavLink to="/make-sale"><span className="icon"><IconMakeSale /></span><span>Make a Sale</span></NavLink></li>
-                    <li><NavLink to="/wholesale"><span className="icon"><IconWholesale /></span><span>Wholesale</span></NavLink></li>
-                    <li><NavLink to="/reports/sales"><span className="icon"><IconReport /></span><span>Sales Report</span></NavLink></li>
-                    <li><NavLink to="/history"><span className="icon"><IconHistory /></span><span>History</span></NavLink></li>
+                    {/* --- UPDATED: Sidebar now uses the imported MUI icons --- */}
+                    <li><NavLink to="/"><span className="icon"><DashboardIcon /></span><span>Dashboard</span></NavLink></li>
+                    <li><NavLink to="/customers"><span className="icon"><PeopleAltIcon /></span><span>Customers</span></NavLink></li>
+                    <li><NavLink to="/inventory"><span className="icon"><InventoryIcon /></span><span>Inventory</span></NavLink></li>
+                    <li><NavLink to="/make-sale"><span className="icon"><ShoppingCartIcon /></span><span>Make a Sale</span></NavLink></li>
+                    <li><NavLink to="/wholesale"><span className="icon"><StorefrontIcon /></span><span>Wholesale</span></NavLink></li>
+                    <li><NavLink to="/reports/sales"><span className="icon"><AssessmentIcon /></span><span>Sales Report</span></NavLink></li>
+                    <li><NavLink to="/history"><span className="icon"><HistoryIcon /></span><span>History</span></NavLink></li>
                 </ul>
             </nav>
             <div className="sidebar-footer">
-                <button onClick={handleLogout} className="logout-button"><span className="icon"><IconLogout /></span><span>Logout</span></button>
+                <button onClick={handleLogout} className="logout-button"><span className="icon"><LogoutIcon /></span><span>Logout</span></button>
             </div>
         </aside>
     );
@@ -154,12 +158,10 @@ const Footer = () => {
             component="footer" 
             sx={{
                 py: 2,
-                // ADD responsive horizontal padding
                 px: { xs: 2, md: '15%' }, 
                 borderTop: '1px solid #e0e0e0',
                 bgcolor: '#f7f9fc',
                 display: 'flex',
-                // CHANGE back to space-between
                 justifyContent: 'space-between', 
                 alignItems: 'center',
                 flexWrap: 'wrap',
@@ -194,13 +196,7 @@ const AppContent = () => {
 
     return (
         <div className="app-layout">
-            <ToastContainer
-                position="top-right"
-                autoClose={5000}
-                hideProgressBar={false}
-                closeOnClick
-                pauseOnHover
-            />
+            <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
             <style>{`
                 :root { --sidebar-width: 240px; --sidebar-width-collapsed: 70px; } 
                 body { margin: 0; background-color: #f7f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 
@@ -221,7 +217,6 @@ const AppContent = () => {
                 .logout-button { width: 100%; display: flex; align-items: center; justify-content: center; padding: 0.75rem; background-color: transparent; color: #a0aec0; border: 1px solid #4a5568; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; white-space: nowrap; overflow: hidden; transition: background-color 0.2s, color 0.2s; } 
                 .logout-button:hover { background-color: #e53e3e; border-color: #e53e3e; color: #ffffff; } 
                 .logout-button .icon { margin-right: 0.5rem; } 
-                
                 @media (max-width: 768px) { 
                     .sidebar { width: var(--sidebar-width-collapsed); } 
                     .sidebar-header h3, .sidebar-nav a span:not(.icon), .logout-button span:not(.icon) { display: none; } 
