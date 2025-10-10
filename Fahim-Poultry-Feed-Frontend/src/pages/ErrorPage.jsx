@@ -21,7 +21,7 @@ export default function ErrorPage() {
           textAlign: 'center'
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: '450px' }}>
+        <Box sx={{ width: '100%', maxWidth: '900px' }}>
           <Lottie animationData={animationData} loop={true} />
         </Box>
 

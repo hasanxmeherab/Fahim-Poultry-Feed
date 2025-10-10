@@ -13,6 +13,9 @@ import { Box, Typography } from '@mui/material';
 import { Card, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
 // ---MUI ICON IMPORTS ---
+import ShowChartIcon from '@mui/icons-material/ShowChart';
+import PeopleIcon from '@mui/icons-material/People';
+
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InventoryIcon from '@mui/icons-material/Inventory';
