@@ -1,8 +1,7 @@
-// frontend/src/components/IssueGoodsForm.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
-import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider } from '@mui/material';
+import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
     const [saleItems, setSaleItems] = useState([]);
@@ -46,7 +45,11 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
 
     // frontend/src/components/IssueGoodsForm.jsx
 
-const handleIssueGoods = async () => {
+    const handleRemoveItem = (itemIndexToRemove) => {
+        setSaleItems(prevItems => prevItems.filter((_, index) => index !== itemIndexToRemove));
+    };
+
+    const handleIssueGoods = async () => {
     if (saleItems.length === 0) {
         setError('Please add at least one item to issue.');
         return;
@@ -121,6 +124,9 @@ const handleIssueGoods = async () => {
                             <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                                 <Typography variant="body2">{item.quantity} x {item.name} @ {item.price.toFixed(2)}</Typography>
                                 <Typography variant="body2">TK {(item.price * item.quantity).toFixed(2)}</Typography>
+                                <IconButton onClick={() => handleRemoveItem(index)} size="small" aria-label="remove item">
+                                        <CloseIcon fontSize="small" />
+                                    </IconButton>
                             </Box>
                         ))}
                     </Box>

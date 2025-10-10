@@ -1,5 +1,3 @@
-// frontend/src/pages/WholesaleBuyerDetailsPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams } from 'react-router-dom';
@@ -11,8 +9,9 @@ import {
     TableBody, TableCell, TableContainer, TableHead,
     TableRow, Paper, CircularProgress, Select, MenuItem,
     FormControl, InputLabel, Checkbox, FormControlLabel,
-    Pagination, Divider
+    Pagination, Divider, IconButton 
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 const WholesaleBuyerDetailsPage = () => {
     const { id } = useParams();
@@ -157,7 +156,20 @@ const WholesaleBuyerDetailsPage = () => {
                 </Box>
                 <Box sx={{ textAlign: 'right', mt: 1, fontWeight: 'bold' }}>Item Total: TK {newItemTotalPrice.toFixed(2)}</Box>
 
-                {saleItems.length > 0 && ( <Box sx={{mt: 2}}> <Typography variant="subtitle1">Items to Sell</Typography> {saleItems.map((item, index) => ( <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}> <Typography variant="body2">{item.name} ({item.quantity} units, {item.weight}kg @ {item.pricePerKg}/kg)</Typography> <Typography variant="body2">TK {item.totalPrice.toFixed(2)}</Typography> </Box> ))} <Divider sx={{ my: 1 }} /> <Typography variant="h6" sx={{ textAlign: 'right' }}>Final Total: TK {saleTotal.toFixed(2)}</Typography> </Box> )}
+                {saleItems.length > 0 && ( 
+                    <Box sx={{mt: 2}}> 
+                    <Typography variant="subtitle1">Items to Sell</Typography> 
+                    {saleItems.map((item, index) => ( 
+                        <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}> 
+                        <Typography variant="body2">{item.name} ({item.quantity} units, {item.weight}kg @ {item.pricePerKg}/kg)</Typography> 
+                        <Typography variant="body2">TK {item.totalPrice.toFixed(2)}</Typography> 
+                        <IconButton onClick={() => handleRemoveItemFromSale(index)} size="small" aria-label="remove item">
+                                        <CloseIcon fontSize="small" />
+                                    </IconButton>
+                        </Box> 
+                    ))} 
+                        <Divider sx={{ my: 1 }} /> 
+                        <Typography variant="h6" sx={{ textAlign: 'right' }}>Final Total: TK {saleTotal.toFixed(2)}</Typography> </Box> )}
                 <FormControlLabel control={<Checkbox checked={isCashPayment} onChange={(e) => setIsCashPayment(e.target.checked)} />} label="Paid in Cash 💵" sx={{ mt: 1 }} />
                 {formError && <Typography color="error" sx={{ mt: 1 }}>{formError}</Typography>}
                 <Button onClick={handleSubmitSale} variant="contained" color="success" fullWidth sx={{ mt: 2 }}>Complete Sale</Button>

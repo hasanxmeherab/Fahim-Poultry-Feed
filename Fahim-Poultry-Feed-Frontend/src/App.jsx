@@ -35,7 +35,7 @@ import EditWholesaleBuyerPage from './pages/EditWholesaleBuyerPage';
 import WholesaleBuyerDetailsPage from './pages/WholesaleBuyerDetailsPage';
 import AddWholesaleProductPage from './pages/AddWholesaleProductPage';
 import EditWholesaleProductPage from './pages/EditWholesaleProductPage';
-
+import ErrorPage from './pages/ErrorPage';
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 // --- INLINE ICON COMPONENTS ---
@@ -256,6 +256,7 @@ const AppContent = () => {
                             <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
                             <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
                             <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
+                            <Route path="*" element={<ErrorPage />} />
                         </Route>
                     </Routes>
                 </div>

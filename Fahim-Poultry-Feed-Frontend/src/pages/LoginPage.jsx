@@ -106,7 +106,8 @@ const LoginPage = () => {
               fullWidth 
               variant="contained"
               size="large"
-              sx={{ mt: 2, py: 1.5, fontWeight: 600, bgcolor: '#27ae60', '&:hover': { bgcolor: '#229954' } }}
+              color="primary"
+              sx={{ mt: 2, py: 1.5, fontWeight: 600 }}
             >
               Log In
             </Button>

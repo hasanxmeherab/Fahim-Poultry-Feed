@@ -1,5 +1,3 @@
-// frontend/src/pages/MakeSalePage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { useNavigate } from 'react-router-dom';
@@ -9,8 +7,9 @@ import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
     TableRow, Paper, CircularProgress, Autocomplete,
-    Checkbox, FormControlLabel, Divider
+    Checkbox, FormControlLabel, Divider, IconButton 
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 const MakeSalePage = () => {
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
@@ -193,7 +192,11 @@ const MakeSalePage = () => {
                                     <TableCell align="right">{item.quantity}</TableCell>
                                     <TableCell align="right">{item.price.toFixed(2)}</TableCell>
                                     <TableCell align="right">{(item.price * item.quantity).toFixed(2)}</TableCell>
-                                    <TableCell align="center"><Button onClick={() => handleRemoveItem(index)} color="error" size="small">X</Button></TableCell>
+                                    <TableCell align="center">
+                                        <IconButton onClick={() => handleRemoveItem(index)} color="error" size="small" aria-label="remove item">
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
