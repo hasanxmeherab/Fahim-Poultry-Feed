@@ -66,8 +66,29 @@ const MakeSalePage = () => {
             setError('Please select a product and enter a valid quantity.');
             return;
         }
-        setSaleItems([...saleItems, { ...selectedProduct, quantity: Number(quantity) }]);
+
+        const newQuantity = Number(quantity);
+        
+        // Check if the product already exists in the cart
+        const existingItem = saleItems.find(item => item._id === selectedProduct._id);
+
+        if (existingItem) {
+            // If it exists, update the quantity
+            setSaleItems(
+                saleItems.map(item =>
+                    item._id === selectedProduct._id
+                        ? { ...item, quantity: item.quantity + newQuantity }
+                        : item
+                )
+            );
+        } else {
+            // If it doesn't exist, add it as a new item
+            setSaleItems([...saleItems, { ...selectedProduct, quantity: newQuantity }]);
+        }
+
+        // Reset form fields
         setSelectedProduct(null);
+        // We don't reset productInput here to allow for faster searching
         setQuantity(1);
         setError(null);
     };

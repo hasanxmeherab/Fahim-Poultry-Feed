@@ -36,14 +36,32 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
             setError('Please select a product and enter a valid quantity.');
             return;
         }
-        setSaleItems([...saleItems, { ...selectedProduct, quantity: Number(quantity) }]);
+
+        const newQuantity = Number(quantity);
+
+        // Check if the product already exists in the cart
+        const existingItem = saleItems.find(item => item._id === selectedProduct._id);
+
+        if (existingItem) {
+            // If it exists, map over the array and update the quantity of the matching item
+            setSaleItems(
+                saleItems.map(item =>
+                    item._id === selectedProduct._id
+                        ? { ...item, quantity: item.quantity + newQuantity }
+                        : item
+                )
+            );
+        } else {
+            // If it doesn't exist, add it as a new item to the array
+            setSaleItems([...saleItems, { ...selectedProduct, quantity: newQuantity }]);
+        }
+
+        // Reset the form fields after adding
         setSelectedProduct(null);
         setInputValue('');
         setQuantity(1);
         setError('');
     };
-
-    // frontend/src/components/IssueGoodsForm.jsx
 
     const handleRemoveItem = (itemIndexToRemove) => {
         setSaleItems(prevItems => prevItems.filter((_, index) => index !== itemIndexToRemove));
