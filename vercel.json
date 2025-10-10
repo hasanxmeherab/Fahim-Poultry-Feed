@@ -9,7 +9,7 @@
       "src": "Fahim-Poultry-Feed-Frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "installCommand": "cd Fahim-Poultry-Feed-Frontend && npm install --legacy-peer-deps",
+        "installCommand": "cd Fahim-Poultry-Feed-Frontend && npm install",
         "buildCommand": "cd Fahim-Poultry-Feed-Frontend && npm run build",
         "outputDirectory": "dist"
       }
