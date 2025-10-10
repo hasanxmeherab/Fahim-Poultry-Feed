@@ -8,8 +8,8 @@ const registerUser = async (req, res) => {
     if (!req.body) {
         return res.status(400).json({ message: 'Request body is missing or malformed. Ensure Content-Type is application/json.' });
     }
-    const { username, password } = req.body;
-    if (!username || !password) {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) {
         return res.status(400).json({ message: 'Please add all fields' });
     }
     const userExists = await User.findOne({ username });
@@ -18,7 +18,7 @@ const registerUser = async (req, res) => {
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    const user = await User.create({ username, password: hashedPassword });
+    const user = await User.create({ username,email,  password: hashedPassword });
     res.status(201).json({ _id: user.id, username: user.username });
 };
 
