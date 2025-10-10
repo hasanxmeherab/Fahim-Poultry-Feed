@@ -12,7 +12,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Box, Typography } from '@mui/material';
 import { Card, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
-// --- NEW MUI ICON IMPORTS ---
+// ---MUI ICON IMPORTS ---
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InventoryIcon from '@mui/icons-material/Inventory';

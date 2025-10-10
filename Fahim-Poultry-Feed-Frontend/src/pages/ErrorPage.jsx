@@ -2,7 +2,6 @@ import React from "react";
 import Lottie from "lottie-react";
 import { useNavigate } from "react-router-dom";
 import animationData from "../assets/error.json";
-import { Helmet, HelmetProvider } from "react-helmet-async";
 
 // MUI Imports
 import { Box, Typography, Button } from "@mui/material";
@@ -10,7 +9,6 @@ import { Box, Typography, Button } from "@mui/material";
 export default function ErrorPage() {
   const navigate = useNavigate();
   return (
-    <HelmetProvider>
       <Box
         sx={{
           display: 'flex',
@@ -23,11 +21,7 @@ export default function ErrorPage() {
           textAlign: 'center'
         }}
       >
-        <Helmet>
-          <title>404 - Page Not Found</title>
-        </Helmet>
-        
-        <Box sx={{ width: '100%', maxWidth: '950px' }}>
+        <Box sx={{ width: '100%', maxWidth: '450px' }}>
           <Lottie animationData={animationData} loop={true} />
         </Box>
 
@@ -48,6 +42,5 @@ export default function ErrorPage() {
           Go Home
         </Button>
       </Box>
-    </HelmetProvider>
   );
 }
