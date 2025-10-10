@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 // NOTE: This register function is for one-time use to create your admin.
 // You can call this once from an API tool like Postman, then remove the route.
 const registerUser = async (req, res) => {
+    if (!req.body) {
+        return res.status(400).json({ message: 'Request body is missing or malformed. Ensure Content-Type is application/json.' });
+    }
     const { username, password } = req.body;
     if (!username || !password) {
         return res.status(400).json({ message: 'Please add all fields' });
