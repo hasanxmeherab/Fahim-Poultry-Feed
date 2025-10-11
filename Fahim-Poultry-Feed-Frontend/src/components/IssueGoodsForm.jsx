@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { showErrorToast, showSuccessToast } from '../utils/notifications.js'; // Import notification utilities
 
 const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
     const [saleItems, setSaleItems] = useState([]);
@@ -68,49 +69,53 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
     };
 
     const handleIssueGoods = async () => {
-    if (saleItems.length === 0) {
-        setError('Please add at least one item to issue.');
-        return;
-    }
-    const saleData = {
-        customerId: customer._id,
-        items: saleItems.map(item => ({ productId: item._id, quantity: item.quantity })),
-        isCashPayment: isCashPayment,
-    };
-
-    try {
-        // 1. Capture the response from the server to get sale details
-        const response = await api.post('/sales', saleData);
-        const newSale = response.data;
-
-        // 2. Prepare the data for the receipt page
-        const balanceBefore = customer.balance;
-        const balanceAfter = isCashPayment ? balanceBefore : balanceBefore - newSale.totalAmount;
-
-        const receiptData = {
-            type: 'sale',
-            customerName: customer.name,
-            items: saleItems, // Use the detailed saleItems from the component's state
-            totalAmount: newSale.totalAmount,
-            balanceBefore: balanceBefore,
-            balanceAfter: balanceAfter,
-            paymentMethod: isCashPayment ? 'Cash' : 'Credit',
-            date: newSale.createdAt,
+        if (saleItems.length === 0) {
+            setError('Please add at least one item to issue.');
+            return;
+        }
+        const saleData = {
+            customerId: customer._id,
+            items: saleItems.map(item => ({ productId: item._id, quantity: item.quantity })),
+            isCashPayment: isCashPayment,
         };
 
-        // 3. Save the data and open the receipt in a new tab
-        sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
-        window.open('/receipt', '_blank');
+        try {
+            // 1. Capture the response from the server to get sale details
+            const response = await api.post('/sales', saleData);
+            const newSale = response.data;
+            
+            // 2. SUCCESS NOTIFICATION (New Addition)
+            showSuccessToast('Goods issued and transaction recorded!');
 
-        // 4. Refresh the page data and clear the form
-        onSaleSuccess();
-        setSaleItems([]);
-        setError('');
+            // 3. Prepare the data for the receipt page
+            const balanceBefore = customer.balance;
+            const balanceAfter = isCashPayment ? balanceBefore : balanceBefore - newSale.totalAmount;
 
-    } catch (err) {
-        setError(err.response?.data?.error || 'Failed to issue items.');
-    }
-};
+            const receiptData = {
+                type: 'sale',
+                customerName: customer.name,
+                items: saleItems, // Use the detailed saleItems from the component's state
+                totalAmount: newSale.totalAmount,
+                balanceBefore: balanceBefore,
+                balanceAfter: balanceAfter,
+                paymentMethod: isCashPayment ? 'Cash' : 'Credit',
+                date: newSale.createdAt,
+            };
+
+            // 4. Save the data and open the receipt in a new tab
+            sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
+            window.open('/receipt', '_blank');
+
+            // 5. Refresh the page data and clear the form
+            onSaleSuccess();
+            setSaleItems([]);
+            setError('');
+
+        } catch (err) {
+            // Use showErrorToast for cleaner error display
+            showErrorToast(err, 'Failed to issue items.'); 
+        }
+    };
 
     return (
         <Paper sx={{ p: 2 }}>
@@ -133,7 +138,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
                 <Button onClick={handleAddItem} variant="contained">Add Item</Button>
             </Box>
             
-            {/* --- UPDATED: Item list and total display --- */}
+            {/* --- Item list and total display --- */}
             {saleItems.length > 0 && (
                 <Box sx={{ mt: 3 }}>
                     <Typography variant="subtitle1">Items to Issue:</Typography>

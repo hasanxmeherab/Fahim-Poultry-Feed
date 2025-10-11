@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create a new instance of axios
 const api = axios.create({
     baseURL: 'http://localhost:5000/api', // The base URL for all our API calls
-    baseURL: import.meta.env.VITE_API_BASE_URL,
+    //baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
 // This is an "interceptor" that runs before every request is sent.
