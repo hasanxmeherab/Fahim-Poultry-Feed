@@ -1,7 +1,7 @@
 const WholesaleProduct = require('../models/wholesaleProductModel');
 const mongoose = require('mongoose');
 
-const getProducts = async (req, res) => {
+const getProducts = async (req, res, next) => {
     try {
         const keyword = req.query.search
             ? { name: { $regex: req.query.search, $options: 'i' } }
@@ -9,12 +9,11 @@ const getProducts = async (req, res) => {
         const products = await WholesaleProduct.find({ ...keyword }).sort({ name: 1 });
         res.status(200).json(products);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-// --- NEW FUNCTION: Get a single wholesale product by ID ---
-const getProductById = async (req, res) => {
+const getProductById = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -28,21 +27,20 @@ const getProductById = async (req, res) => {
         }
         res.status(200).json(product);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-const createProduct = async (req, res) => {
+const createProduct = async (req, res, next) => {
     try {
         const newProduct = await WholesaleProduct.create({ name: req.body.name });
         res.status(201).json(newProduct);
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        next(error);
     }
 };
 
-// --- NEW FUNCTION: Update a wholesale product ---
-const updateProduct = async (req, res) => {
+const updateProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -56,12 +54,11 @@ const updateProduct = async (req, res) => {
         }
         res.status(200).json(product);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-// --- NEW FUNCTION: Delete a wholesale product ---
-const deleteProduct = async (req, res) => {
+const deleteProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -75,7 +72,7 @@ const deleteProduct = async (req, res) => {
         }
         res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 

@@ -2,10 +2,9 @@ const Product = require('../models/productModel');
 const mongoose = require('mongoose');
 const Transaction = require('../models/transactionModel');
 
-
 // @desc   Get all products
 // @route  GET /api/products
-const getProducts = async (req, res) => {
+const getProducts = async (req, res, next) => {
   try {
     const keyword = req.query.search
       ? {
@@ -19,12 +18,13 @@ const getProducts = async (req, res) => {
     const products = await Product.find({ ...keyword }).sort({ createdAt: -1 });
     res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-
-const getProduct = async (req, res) => {
+// @desc   Get a single product
+// @route  GET /api/products/:id
+const getProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -38,13 +38,13 @@ const getProduct = async (req, res) => {
         }
         res.status(200).json(product);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
 // @desc   Create a new product
 // @route  POST /api/products
-const createProduct = async (req, res) => {
+const createProduct = async (req, res, next) => {
   const { name, sku, price, quantity } = req.body;
 
   if (!name || !sku || !price) {
@@ -55,17 +55,17 @@ const createProduct = async (req, res) => {
     const product = await Product.create({ name, sku, price, quantity });
     res.status(201).json(product);
   } catch (error) {
-    // Handle duplicate SKU error
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'A product with this SKU already exists.' });
+      error.statusCode = 400;
+      error.message = 'A product with this SKU already exists.';
     }
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
 // @desc   Update a product
 // @route  PATCH /api/products/:id
-const updateProduct = async (req, res) => {
+const updateProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -79,13 +79,13 @@ const updateProduct = async (req, res) => {
         }
         res.status(200).json(product);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
 // @desc   Delete a product
 // @route  DELETE /api/products/:id
-const deleteProduct = async (req, res) => {
+const deleteProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -99,12 +99,13 @@ const deleteProduct = async (req, res) => {
         }
         res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-// Add Stock
-const addStock = async (req, res) => {
+// @desc   Add stock to a product
+// @route  PATCH /api/products/:id/addstock
+const addStock = async (req, res, next) => {
     const { id } = req.params;
     const { addQuantity } = req.body;
 
@@ -112,33 +113,43 @@ const addStock = async (req, res) => {
         return res.status(400).json({ error: 'Invalid quantity provided.' });
     }
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const updatedProduct = await Product.findByIdAndUpdate(
             id,
-            { $inc: { quantity: addQuantity } }, // Atomically increases the quantity
-            { new: true } // Returns the updated document
+            { $inc: { quantity: addQuantity } },
+            { new: true, session }
         );
 
         if (!updatedProduct) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ error: 'No such product' });
         }
         
-        await Transaction.create({
-    type: 'STOCK_ADD',
-    product: id,
-    quantityChange: addQuantity,
-    notes: `Added ${addQuantity} unit(s) to ${updatedProduct.name}`
-});
+        await Transaction.create([{
+            type: 'STOCK_ADD',
+            product: id,
+            quantityChange: addQuantity,
+            notes: `Added ${addQuantity} unit(s) to ${updatedProduct.name}`
+        }], { session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json(updatedProduct);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
-//Remove Stock
-// Add this new function inside the file
-const removeStock = async (req, res) => {
+// @desc   Remove stock from a product
+// @route  PATCH /api/products/:id/removestock
+const removeStock = async (req, res, next) => {
     const { id } = req.params;
     const { removeQuantity } = req.body;
 
@@ -146,49 +157,56 @@ const removeStock = async (req, res) => {
         return res.status(400).json({ error: 'Invalid quantity provided.' });
     }
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        // First, find the product to check its current quantity
-        const product = await Product.findById(id);
+        const product = await Product.findById(id).session(session);
         if (!product) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ error: 'No such product' });
         }
 
-        // Check if there is enough stock to remove
         if (product.quantity < removeQuantity) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ error: `Not enough stock. Only ${product.quantity} available.` });
         }
-
-        // If validation passes, decrease the quantity
-        product.quantity -= removeQuantity;
-        const updatedProduct = await product.save();
         
-        await Transaction.create({
-    type: 'STOCK_REMOVE',
-    product: id,
-    quantityChange: -removeQuantity, // Store removal as a negative quantity
-    notes: `Removed ${removeQuantity} unit(s) of ${updatedProduct.name}`
-});
+        product.quantity -= removeQuantity;
+        const updatedProduct = await product.save({ session });
+        
+        await Transaction.create([{
+            type: 'STOCK_REMOVE',
+            product: id,
+            quantityChange: -removeQuantity,
+            notes: `Removed ${removeQuantity} unit(s) of ${updatedProduct.name}`
+        }], { session });
+        
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json(updatedProduct);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
-const checkSkuExists = async (req, res) => {
+// @desc   Check if a SKU exists
+// @route  GET /api/products/check-sku
+const checkSkuExists = async (req, res, next) => {
     const { sku } = req.query;
     if (!sku) {
-        // Silently fail if no SKU is provided
         return res.status(200).json({ exists: false });
     }
     try {
         const product = await Product.findOne({ sku: sku.trim() });
-        if (product) {
-            return res.status(200).json({ exists: true });
-        }
-        res.status(200).json({ exists: false });
+        res.status(200).json({ exists: !!product });
     } catch (error) {
-        res.status(500).json({ message: 'Server error checking SKU.' });
+        next(error);
     }
 };
 

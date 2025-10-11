@@ -45,6 +45,13 @@ const startServer = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('Successfully connected to MongoDB! データベースに接続しました');
 
+    app.use((err, _req, res, _next) => {
+  console.error(err.stack); // Log the full error for debugging
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+  res.status(statusCode).json({ error: message });
+});
+
     // Start the server only after a successful DB connection
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT} 🚀`);

@@ -1,84 +1,85 @@
+const mongoose = require('mongoose');
 const Batch = require('../models/batchModel');
 const Customer = require('../models/customerModel');
 const Transaction = require('../models/transactionModel');
 
 // @desc    Start a new batch for a customer
-const startNewBatch = async (req, res) => {
+const startNewBatch = async (req, res, next) => {
     const { customerId } = req.body;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const customer = await Customer.findById(customerId);
+        const customer = await Customer.findById(customerId).session(session);
         if (!customer) {
-            return res.status(404).json({ message: 'Customer not found' });
+            throw new Error('Customer not found');
         }
 
-        // Find and complete any existing active batch
-        const existingBatch = await Batch.findOne({ customer: customerId, status: 'Active' });
+        const existingBatch = await Batch.findOne({ customer: customerId, status: 'Active' }).session(session);
         if (existingBatch) {
             existingBatch.status = 'Completed';
             existingBatch.endDate = new Date();
             existingBatch.endingBalance = customer.balance;
-            await existingBatch.save();
+            await existingBatch.save({ session });
         }
 
-        // Correctly calculate the next batch number
-        const batchCount = await Batch.countDocuments({ customer: customerId });
+        const batchCount = await Batch.countDocuments({ customer: customerId }).session(session);
         const newBatchNumber = batchCount + 1;
 
-        // Create the new batch with the required batchNumber
-        const newBatch = await Batch.create({
+        const createdBatches = await Batch.create([{
             customer: customerId,
             startingBalance: customer.balance,
-            batchNumber: newBatchNumber, // This line is crucial
-        });
+            batchNumber: newBatchNumber,
+        }], { session });
 
-        res.status(201).json(newBatch);
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json(createdBatches[0]);
 
     } catch (error) {
-        console.error("ERROR STARTING BATCH:", error);
-        res.status(500).json({ message: 'Server error starting new batch', error: error.message });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
 // @desc    Get all batches for a single customer
-const getBatchesForCustomer = async (req, res) => {
+const getBatchesForCustomer = async (req, res, next) => {
     try {
         const batches = await Batch.find({ customer: req.params.id }).sort({ startDate: -1 });
         res.status(200).json(batches);
     } catch (error) {
-        res.status(500).json({ message: 'Server error fetching batches' });
+        next(error);
     }
 };
 
-// --- NEW FUNCTION: ADD DISCOUNT ---
-const addDiscount = async (req, res) => {
+// @desc    Add a discount to a batch
+const addDiscount = async (req, res, next) => {
     const { id } = req.params; // Batch ID
     const { description, amount } = req.body;
 
     if (!description || !amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
         return res.status(400).json({ message: 'A valid description and positive amount are required.' });
     }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-        const batch = await Batch.findById(id).populate('customer');
-        if (!batch) {
-            return res.status(404).json({ message: 'Batch not found.' });
-        }
-        if (batch.status !== 'Active') {
-            return res.status(400).json({ message: 'Discounts can only be added to active batches.' });
-        }
+        const batch = await Batch.findById(id).populate('customer').session(session);
+        if (!batch) throw new Error('Batch not found.');
+        if (batch.status !== 'Active') throw new Error('Discounts can only be added to active batches.');
 
         const customer = batch.customer;
         const discountAmount = parseFloat(amount);
 
-        // Add discount to the batch's array
         batch.discounts.push({ description, amount: discountAmount });
         
-        // A discount is a credit, so it INCREASES the customer's balance (makes it less negative)
         const balanceBefore = customer.balance;
         customer.balance += discountAmount;
         
-        // Create a transaction record for the discount
-        await Transaction.create({
+        await Transaction.create([{
             type: 'DISCOUNT',
             customer: customer._id,
             batch: batch._id,
@@ -86,95 +87,103 @@ const addDiscount = async (req, res) => {
             balanceBefore: balanceBefore,
             balanceAfter: customer.balance,
             notes: `Discount applied: ${description} (TK ${discountAmount.toFixed(2)})`
-        });
+        }], { session });
 
-        await customer.save();
-        const updatedBatch = await batch.save();
+        await customer.save({ session });
+        const updatedBatch = await batch.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json(updatedBatch);
 
     } catch (error) {
-        console.error("ADD DISCOUNT ERROR:", error);
-        res.status(500).json({ message: 'Server error while adding discount.' });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
-// --- NEW FUNCTION: REMOVE DISCOUNT ---
-const removeDiscount = async (req, res) => {
+// @desc    Remove a discount from a batch
+const removeDiscount = async (req, res, next) => {
     const { id, discountId } = req.params; // Batch ID and Discount ID
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const batch = await Batch.findById(id).populate('customer');
-        if (!batch) return res.status(404).json({ message: 'Batch not found.' });
-        if (batch.status !== 'Active') return res.status(400).json({ message: 'Discounts can only be removed from active batches.' });
+        const batch = await Batch.findById(id).populate('customer').session(session);
+        if (!batch) throw new Error('Batch not found.');
+        if (batch.status !== 'Active') throw new Error('Discounts can only be removed from active batches.');
         
         const customer = batch.customer;
         const discountToRemove = batch.discounts.id(discountId);
 
-        if (!discountToRemove) return res.status(404).json({ message: 'Discount not found in this batch.' });
+        if (!discountToRemove) throw new Error('Discount not found in this batch.');
         
         const discountAmount = discountToRemove.amount;
 
-        // Revert customer balance by DECREASING it
         const balanceBefore = customer.balance;
         customer.balance -= discountAmount;
 
-        // Create a transaction record for the removal
-        await Transaction.create({
+        await Transaction.create([{
             type: 'DISCOUNT_REMOVAL',
             customer: customer._id,
             batch: batch._id,
-            amount: -discountAmount, // Log as a negative amount
+            amount: -discountAmount,
             balanceBefore: balanceBefore,
             balanceAfter: customer.balance,
             notes: `Discount removed: ${discountToRemove.description} (TK ${discountAmount.toFixed(2)})`
-        });
+        }], { session });
 
-        // Remove the discount from the batch's array
         await batch.discounts.pull({ _id: discountId });
         
-        await customer.save();
-        const updatedBatch = await batch.save();
+        await customer.save({ session });
+        const updatedBatch = await batch.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json(updatedBatch);
 
     } catch (error) {
-        console.error("REMOVE DISCOUNT ERROR:", error);
-        res.status(500).json({ message: 'Server error while removing discount.' });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
-const buyBackAndEndBatch = async (req, res) => {
+// @desc    Buy back chickens and end the active batch
+const buyBackAndEndBatch = async (req, res, next) => {
     const { quantity, weight, pricePerKg } = req.body;
     const batchId = req.params.id;
 
-    // Validate input
     if (!quantity || !weight || !pricePerKg) {
         return res.status(400).json({ message: 'Quantity, weight, and price per kg are required.' });
     }
 
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const batch = await Batch.findById(batchId).populate('customer');
+        const batch = await Batch.findById(batchId).populate('customer').session(session);
         if (!batch || batch.status !== 'Active') {
-            return res.status(404).json({ message: 'Active batch not found' });
+            throw new Error('Active batch not found');
         }
 
         const customer = batch.customer;
         const balanceBefore = customer.balance;
         const totalAmount = parseFloat(weight) * parseFloat(pricePerKg);
 
-        // Add the buy-back value to the customer's balance
         customer.balance += totalAmount;
-        await customer.save();
+        await customer.save({ session });
 
-        // Mark the batch as completed
         batch.status = 'Completed';
         batch.endDate = new Date();
         batch.endingBalance = customer.balance;
-        await batch.save();
+        await batch.save({ session });
         
-        // Log the detailed buy-back as a transaction
-        await Transaction.create({
+        await Transaction.create([{
             type: 'BUY_BACK',
             customer: customer._id,
             amount: totalAmount,
@@ -185,13 +194,17 @@ const buyBackAndEndBatch = async (req, res) => {
             balanceAfter: customer.balance,
             notes: `Bought back ${quantity} chickens (${weight}kg @ TK ${pricePerKg}/kg)`,
             batch: batch._id,
-        });
+        }], { session });
+        
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json({ message: 'Batch ended and account settled successfully' });
 
     } catch (error) {
-        console.error("BUY BACK ERROR:", error);
-        res.status(500).json({ message: 'Server error during buy-back', error });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 

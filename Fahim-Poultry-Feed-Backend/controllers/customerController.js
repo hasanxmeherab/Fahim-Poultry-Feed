@@ -5,7 +5,7 @@ const Batch = require('../models/batchModel');
 
 // @desc   Get all customers
 // @route  GET /api/customers
-const getCustomers = async (req, res) => {
+const getCustomers = async (req, res, next) => {
   try {
     const keyword = req.query.search
       ? {
@@ -19,12 +19,11 @@ const getCustomers = async (req, res) => {
     const customers = await Customer.find({ ...keyword }).sort({ createdAt: -1 });
     res.status(200).json(customers);
   } catch (error) {
-    console.error("ERROR IN getCustomers:", error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-const getCustomer = async (req, res) => {
+const getCustomer = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -38,13 +37,13 @@ const getCustomer = async (req, res) => {
         }
         res.status(200).json(customer);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
 // @desc   Create a new customer
 // @route  POST /api/customers
-const createCustomer = async (req, res) => {
+const createCustomer = async (req, res, next) => {
   const { name, phone, email, address } = req.body;
 
   if (!name || !phone) {
@@ -56,16 +55,16 @@ const createCustomer = async (req, res) => {
     res.status(201).json(newCustomer);
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(400).json({ error: 'A customer with this phone number already exists.' });
+      error.statusCode = 400;
+      error.message = 'A customer with this phone number already exists.';
     }
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-// --- THIS IS THE DEPOSIT FUNCTION ---
 // @desc   Add a deposit to a customer's balance
 // @route  PATCH /api/customers/:id/deposit
-const addDeposit = async (req, res) => {
+const addDeposit = async (req, res, next) => {
   const { id } = req.params;
   const { amount } = req.body;
 
@@ -74,76 +73,98 @@ const addDeposit = async (req, res) => {
   }
 
   if (typeof amount !== 'number' || amount <= 0) {
-    return res.status(400).json({ error: 'A invalid deposit amount was provided.' });
+    return res.status(400).json({ error: 'An invalid deposit amount was provided.' });
   }
 
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const customer = await Customer.findById(id);
+    const customer = await Customer.findById(id).session(session);
     if (!customer) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ error: 'Customer not found.' });
     }
 
-    // Add the amount to the current balance
     const balanceBefore = customer.balance;
     customer.balance += amount;
-    const updatedCustomer = await customer.save();
     
-    //const balanceBefore = customer.balance - amount; // Recalculate pre-deposit balance
-    await Transaction.create({
-    type: 'DEPOSIT',
-    customer: id,
-    amount: amount,
-    balanceBefore: balanceBefore,
-    balanceAfter: customer.balance,
-    notes: `Deposit of $${amount.toFixed(2)} for ${customer.name}`
-});
+    await Transaction.create([{
+        type: 'DEPOSIT',
+        customer: id,
+        amount: amount,
+        balanceBefore: balanceBefore,
+        balanceAfter: customer.balance,
+        notes: `Deposit of $${amount.toFixed(2)} for ${customer.name}`
+    }], { session });
+
+    const updatedCustomer = await customer.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json(updatedCustomer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
   }
 };
 
-//Withdrawal
-const makeWithdrawal = async (req, res) => {
+// @desc   Make a withdrawal from a customer's balance
+// @route  PATCH /api/customers/:id/withdrawal
+const makeWithdrawal = async (req, res, next) => {
     const { id } = req.params;
     const { amount } = req.body;
 
     if (typeof amount !== 'number' || amount <= 0) {
         return res.status(400).json({ error: 'Invalid withdrawal amount.' });
     }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-        const customer = await Customer.findById(id);
+        const customer = await Customer.findById(id).session(session);
         if (!customer) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ error: 'Customer not found.' });
         }
 
-        // Check if the customer has enough balance for the withdrawal
         if (customer.balance < amount) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ error: `Insufficient balance. Available: ${customer.balance.toFixed(2)}` });
         }
 
         const balanceBefore = customer.balance;
         customer.balance -= amount;
-        const updatedCustomer = await customer.save();
         
-        //const balanceBefore = customer.balance + amount; // Recalculate pre-withdrawal balance
-      await Transaction.create({
-    type: 'WITHDRAWAL',
-    customer: id,
-    amount: -amount,
-    balanceBefore: balanceBefore,
-    balanceAfter: customer.balance,
-    notes: `Withdrawal of $${amount.toFixed(2)} by ${customer.name}`
-});
+        await Transaction.create([{
+            type: 'WITHDRAWAL',
+            customer: id,
+            amount: -amount,
+            balanceBefore: balanceBefore,
+            balanceAfter: customer.balance,
+            notes: `Withdrawal of $${amount.toFixed(2)} by ${customer.name}`
+        }], { session });
+
+        const updatedCustomer = await customer.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
 
         res.status(200).json(updatedCustomer);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
-const deleteCustomer = async (req, res) => {
+
+const deleteCustomer = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -157,12 +178,11 @@ const deleteCustomer = async (req, res) => {
         }
         res.status(200).json({ message: 'Customer deleted successfully' });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-//Update Customer
-const updateCustomer = async (req, res) => {
+const updateCustomer = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -176,83 +196,32 @@ const updateCustomer = async (req, res) => {
         }
         res.status(200).json(customer);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        next(error);
     }
 };
 
-//Update Product
-const updateProduct = async (req, res) => {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
-    }
-
-    try {
-        const product = await Product.findByIdAndUpdate(id, { ...req.body }, { new: true });
-        if (!product) {
-            return res.status(404).json({error: 'No such product'});
-        }
-        res.status(200).json(product);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-//Delete Product
-const deleteProduct = async (req, res) => {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
-    }
-
-    try {
-        const product = await Product.findByIdAndDelete(id);
-        if (!product) {
-            return res.status(404).json({error: 'No such product'});
-        }
-        res.status(200).json({ message: 'Product deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-//Get Product
-const getProduct = async (req, res) => {
-    const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
-    }
-
-    try {
-        const product = await Product.findById(id);
-        if (!product) {
-            return res.status(404).json({error: 'No such product found'});
-        }
-        res.status(200).json(product);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-const buyFromCustomer = async (req, res) => {
-    // Add referenceName to the destructuring
+const buyFromCustomer = async (req, res, next) => {
     const { customerId, quantity, weight, pricePerKg, referenceName } = req.body;
 
     if (!customerId || !quantity || !weight || !pricePerKg) {
         return res.status(400).json({ message: 'Customer ID, quantity, weight, and price are required.' });
     }
+    
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-        const customer = await Customer.findById(customerId);
+        const customer = await Customer.findById(customerId).session(session);
         if (!customer) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({ message: 'Customer not found' });
         }
 
-        const activeBatch = await Batch.findOne({ customer: customerId, status: 'Active' });
+        const activeBatch = await Batch.findOne({ customer: customerId, status: 'Active' }).session(session);
         if (!activeBatch) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({ message: 'Cannot buy from customer with no active batch.' });
         }
 
@@ -260,10 +229,9 @@ const buyFromCustomer = async (req, res) => {
         const totalAmount = parseFloat(weight) * parseFloat(pricePerKg);
 
         customer.balance += totalAmount;
-        await customer.save();
-
-        // Log the detailed buy-back, now including the referenceName
-        const newTransaction = await Transaction.create({
+        await customer.save({ session });
+        
+        const newTransaction = await Transaction.create([{
             type: 'BUY_BACK',
             customer: customer._id,
             amount: totalAmount,
@@ -275,20 +243,19 @@ const buyFromCustomer = async (req, res) => {
             balanceAfter: customer.balance,
             notes: `Bought back ${quantity} chickens (${weight}kg @ TK ${pricePerKg}/kg)`,
             batch: activeBatch._id,
-        });
+        }], { session });
         
-        // Return the full transaction object
-        res.status(200).json(newTransaction);
-
+        await session.commitTransaction();
+        session.endSession();
+        
+        res.status(200).json(newTransaction[0]);
     } catch (error) {
-        console.error("BUY_FROM_CUSTOMER ERROR:", error);
-        res.status(500).json({ message: 'Server error during buy back', error });
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
     }
 };
 
-
-
-// EXPORT ALL FUNCTIONS AT THE END OF THE FILE
 module.exports = {
   getCustomers,
   getCustomer,
@@ -297,8 +264,5 @@ module.exports = {
   makeWithdrawal,
   deleteCustomer,
   updateCustomer,
-  updateProduct, 
-  deleteProduct,
-  getProduct,
   buyFromCustomer
 };
