@@ -24,6 +24,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
         const timer = setTimeout(async () => {
             setLoading(true);
             try {
+                // Fetch products based on search input (Debounced Search)
                 const response = await api.get(`/products?search=${inputValue}`);
                 if (active) { setOptions(response.data); }
             } catch (err) { console.error("Failed to search products"); }
@@ -40,8 +41,15 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
 
         const newQuantity = Number(quantity);
 
-        // Check if the product already exists in the cart
+        // Client-side Stock Check (Crucial for UX)
+        const totalStock = selectedProduct.quantity;
         const existingItem = saleItems.find(item => item._id === selectedProduct._id);
+        const existingCartQty = existingItem ? existingItem.quantity : 0;
+        
+        if (newQuantity + existingCartQty > totalStock) {
+            setError(`Insufficient stock. Only ${totalStock} available.`);
+            return;
+        }
 
         if (existingItem) {
             // If it exists, map over the array and update the quantity of the matching item
@@ -73,22 +81,26 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
             setError('Please add at least one item to issue.');
             return;
         }
+        
+        // Prepare the payload for the backend
         const saleData = {
             customerId: customer._id,
             items: saleItems.map(item => ({ productId: item._id, quantity: item.quantity })),
             isCashPayment: isCashPayment,
+            // isRandomCustomer is implicitly false here as this form targets a specific customer
         };
 
         try {
-            // 1. Capture the response from the server to get sale details
+            // 1. Post the sale transaction
             const response = await api.post('/sales', saleData);
             const newSale = response.data;
             
-            // 2. SUCCESS NOTIFICATION (New Addition)
-            showSuccessToast('Goods issued and transaction recorded!');
+            // 2. SUCCESS NOTIFICATION
+            showSuccessToast('Items issued and transaction recorded!');
 
             // 3. Prepare the data for the receipt page
             const balanceBefore = customer.balance;
+            // Calculate new balance based on payment type
             const balanceAfter = isCashPayment ? balanceBefore : balanceBefore - newSale.totalAmount;
 
             const receiptData = {
@@ -106,7 +118,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
             sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
             window.open('/receipt', '_blank');
 
-            // 5. Refresh the page data and clear the form
+            // 5. Refresh the customer data on the details page and clear the form
             onSaleSuccess();
             setSaleItems([]);
             setError('');
@@ -128,14 +140,27 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
                 loading={loading}
                 getOptionLabel={(option) => `${option.name} (In Stock: ${option.quantity})`}
                 value={selectedProduct}
-                onChange={(event, newValue) => { setOptions(newValue ? [newValue, ...options] : options); setSelectedProduct(newValue); }}
+                onChange={(event, newValue) => { 
+                    // Add the selected option to options if it wasn't there (for persistent label on close)
+                    setOptions(newValue ? [newValue, ...options.filter(o => o._id !== newValue._id)] : options); 
+                    setSelectedProduct(newValue); 
+                }}
                 onInputChange={(event, newInputValue) => { setInputValue(newInputValue); }}
                 isOptionEqualToValue={(option, value) => option._id === value._id}
                 renderInput={(params) => <TextField {...params} label="Search for a Product" />}
             />
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                <TextField type="number" label="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} size="small" />
-                <Button onClick={handleAddItem} variant="contained">Add Item</Button>
+                <TextField 
+                    type="number" 
+                    label="Quantity" 
+                    value={quantity} 
+                    onChange={(e) => setQuantity(e.target.value)} 
+                    size="small" 
+                    inputProps={{ min: 1 }}
+                />
+                <Button onClick={handleAddItem} variant="contained">
+                    Add Item
+                </Button>
             </Box>
             
             {/* --- Item list and total display --- */}
@@ -166,7 +191,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
                 label="Paid in Cash 💵"
                 sx={{ mt: 2 }}
             />
-            <Button onClick={handleIssueGoods} variant="contained" color="success" fullWidth sx={{ mt: 1 }}>
+            <Button onClick={handleIssueGoods} variant="contained" color="success" fullWidth sx={{ mt: 1 }} disabled={saleItems.length === 0}>
                 Confirm and Issue Items
             </Button>
         </Paper>

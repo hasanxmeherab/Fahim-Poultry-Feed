@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+import ConfirmDialog from './ConfirmDialog.jsx'; 
 
 const modalStyle = {
     position: 'absolute',
@@ -29,7 +30,11 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
     // State for the Buy from Customer Modal
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     const [buyData, setBuyData] = useState({ quantity: '', weight: '', pricePerKg: '', referenceName: '' });
-
+    
+    // ---STATE for confirmation dialog ---
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [discountToDeleteId, setDiscountToDeleteId] = useState(null);
+    
     const handleAddDiscount = async (e) => {
         e.preventDefault();
         try {
@@ -43,16 +48,28 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
         }
     };
 
-    const handleRemoveDiscount = async (discountId) => {
-        if (!window.confirm('Are you sure you want to remove this discount?')) return;
+     // ---function to OPEN the dialog ---
+    const handleRemoveDiscount = (discountId) => {
+        setDiscountToDeleteId(discountId); // Set which discount to delete
+        setIsConfirmOpen(true);             // Open the dialog
+    };
+
+    // ---function to handle the actual API call after confirmation ---
+    const handleConfirmRemoveDiscount = async () => {
+        if (!discountToDeleteId) return;
+
         try {
-            await api.delete(`/batches/${batch._id}/discount/${discountId}`);
+            await api.delete(`/batches/${batch._id}/discount/${discountToDeleteId}`);
             showSuccessToast('Discount removed successfully!');
             onDataRefresh();
         } catch (err) {
             showErrorToast(err, 'Failed to remove discount.');
+        } finally {
+            setIsConfirmOpen(false);      // Close the dialog
+            setDiscountToDeleteId(null); // Reset the ID
         }
     };
+
 
     const handleBuyChange = (e) => {
         setBuyData({ ...buyData, [e.target.name]: e.target.value });
@@ -222,6 +239,17 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                     </TableContainer>
                 </Box></Fade>
             </Modal>
+
+            <ConfirmDialog
+                isOpen={isConfirmOpen}
+                title="Confirm Discount Removal"
+                message="Are you sure you want to remove this discount? This will adjust the customer's balance and cannot be undone."
+                onConfirm={handleConfirmRemoveDiscount}
+                onCancel={() => setIsConfirmOpen(false)}
+                confirmButtonText="Delete"
+                confirmColor="error"
+            />
+
         </>
     );
 };

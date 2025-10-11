@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api.js';
 import { useParams } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
-
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 // MUI Imports
 import { 
     Box, Stack, CircularProgress, Typography, Select, MenuItem, 
@@ -36,7 +36,6 @@ const CustomerDetailsPage = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [filterDate, setFilterDate] = useState('');
     
-    // REMOVED: const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
     const refreshData = useCallback(async () => {
         setIsLoading(true);
@@ -119,19 +118,26 @@ const CustomerDetailsPage = () => {
         fetchTransactionsAndDetails();
     }, [selectedBatchId, page, batches, filterDate]);
 
-    // --- REVERTED: Using window.confirm() instead of the MUI Dialog ---
-    const handleStartNewBatch = async () => {
-        let confirmMessage = "Are you sure you want to start a new batch cycle?";
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [confirmMessage, setConfirmMessage] = useState({ title: '', body: '' });
 
-        // If a batch already exists, the action ends the current one.
+    // --- Using window.confirm() instead of the MUI Dialog ---
+    const handleStartNewBatch = () => {
+        let title = "Start New Batch Cycle";
+        let body = "Are you sure you want to start a new batch cycle? This action cannot be undone for the current ledger.";
+
         if (batches.length > 0) {
-            confirmMessage = "WARNING: This will END the current batch (closing its ledger) and start a new one. Are you sure you want to proceed?";
+            title = "End Current & Start New Batch";
+            body = "WARNING: This will END the current active batch (closing its ledger) and start a new one. Are you sure you want to proceed?";
         }
 
-        if (!window.confirm(confirmMessage)) {
-            return;
-        }
-        
+        setConfirmMessage({ title, body });
+        setIsConfirmModalOpen(true);
+    };
+
+    // --- NEW: Executes the API call only after user confirms via the Dialog ---
+    const handleConfirmBatchCycle = async () => {
+        setIsConfirmModalOpen(false);
         try {
             await api.post('/batches/start', { customerId: id });
             showSuccessToast('Batch cycle successful!');
@@ -270,8 +276,17 @@ const CustomerDetailsPage = () => {
                 </Paper>
                 
             </Stack>
+
+            <ConfirmDialog
+                isOpen={isConfirmModalOpen}
+                title={confirmMessage.title}
+                message={confirmMessage.body}
+                onConfirm={handleConfirmBatchCycle}
+                onCancel={() => setIsConfirmModalOpen(false)}
+                confirmButtonText="Yes, Proceed"
+                confirmColor={batches.length > 0 ? 'error' : 'success'} // Red for ending batch, Green for starting first batch
+            />
             
-            {/* REMOVED: The MUI Confirmation Dialog */}
         </Box>
     );
 };

@@ -13,9 +13,6 @@ import { Box, Typography } from '@mui/material';
 import { Card, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
 // ---MUI ICON IMPORTS ---
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import PeopleIcon from '@mui/icons-material/People';
-
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -52,7 +49,6 @@ import ErrorPage from './pages/ErrorPage';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// --- REMOVED: The old block of inline SVG icon components ---
 
 // Using the original, simpler HomePage component from your old version
 const HomePage = () => {
@@ -138,7 +134,6 @@ const Sidebar = ({ handleLogout }) => {
             <div className="sidebar-header"><h3>Fahim Poultry Feed</h3></div>
             <nav className="sidebar-nav">
                 <ul>
-                    {/* --- UPDATED: Sidebar now uses the imported MUI icons --- */}
                     <li><NavLink to="/"><span className="icon"><DashboardIcon /></span><span>Dashboard</span></NavLink></li>
                     <li><NavLink to="/customers"><span className="icon"><PeopleAltIcon /></span><span>Customers</span></NavLink></li>
                     <li><NavLink to="/inventory"><span className="icon"><InventoryIcon /></span><span>Inventory</span></NavLink></li>
@@ -200,33 +195,136 @@ const AppContent = () => {
     return (
         <div className="app-layout">
             <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+            
+            {/* ---------------------------------------------------------------------------------- */}
+            {/* UPDATED CSS FOR HOVER-TO-EXPAND SIDEBAR */}
+            {/* ---------------------------------------------------------------------------------- */}
             <style>{`
-                :root { --sidebar-width: 240px; --sidebar-width-collapsed: 70px; } 
+                :root { 
+                    --sidebar-width-expanded: 240px; 
+                    --sidebar-width-collapsed: 70px; 
+                } 
                 body { margin: 0; background-color: #f7f9fc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 
                 .app-layout { display: flex; min-height: 100vh; flex-direction: column; } 
                 .main-content-wrapper { display: flex; flex-grow: 1; }
-                .main-content { flex-grow: 1; padding: 2rem; margin-left: var(--sidebar-width); transition: margin-left 0.3s ease; } 
+                
+                /* DEFAULT STATE: COLLAPSED */
+                .sidebar { 
+                    width: var(--sidebar-width-collapsed); 
+                    background-color: #1a2c3a; 
+                    color: #e5e7eb; 
+                    display: flex; 
+                    flex-direction: column; 
+                    position: fixed; 
+                    height: 100%; 
+                    top: 0; 
+                    left: 0; 
+                    transition: width 0.3s ease; 
+                    flex-shrink: 0; 
+                    z-index: 1000; /* Ensure it stays above content */
+                    overflow-x: hidden; /* Hide horizontal scrollbar when collapsed */
+                } 
+                
+                /* HOVER STATE: EXPAND */
+                .sidebar:hover {
+                    width: var(--sidebar-width-expanded);
+                }
+
+                /* Main Content Area */
+                .main-content { 
+                    flex-grow: 1; 
+                    padding: 2rem; 
+                    /* Start with collapsed margin, match hover transition */
+                    margin-left: var(--sidebar-width-collapsed); 
+                    transition: margin-left 0.3s ease; 
+                } 
+                
+                /* Adjust main content margin when sidebar is hovered */
+                .sidebar:hover ~ .main-content {
+                    margin-left: var(--sidebar-width-expanded);
+                }
+
                 .main-content-fullscreen { flex-grow: 1; } 
-                .sidebar { width: var(--sidebar-width); background-color: #1a2c3a; color: #e5e7eb; display: flex; flex-direction: column; position: fixed; height: 100%; top: 0; left: 0; transition: width 0.3s ease; flex-shrink: 0; } 
+                
                 .sidebar-header { padding: 1.5rem; text-align: center; border-bottom: 1px solid #2d3748; flex-shrink: 0; } 
-                .sidebar-header h3 { margin: 0; font-size: 1.25rem; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } 
+                
+                /* Sidebar Text Elements */
+                .sidebar-header h3, 
+                .sidebar-nav a span:not(.icon), 
+                .logout-button span:not(.icon) { 
+                    opacity: 0; /* Hidden by default */
+                    white-space: nowrap; 
+                    overflow: hidden; 
+                    transition: opacity 0.3s ease; 
+                } 
+
+                /* Show text on hover */
+                .sidebar:hover .sidebar-header h3,
+                .sidebar:hover .sidebar-nav a span:not(.icon),
+                .sidebar:hover .logout-button span:not(.icon) {
+                    opacity: 1; 
+                }
+
+                .sidebar-header h3 { margin: 0; font-size: 1.25rem; color: #ffffff; } 
+                
                 .sidebar-nav { flex-grow: 1; padding-top: 0.5rem; } 
                 .sidebar-nav ul { list-style: none; padding: 0; margin: 0; } 
-                .sidebar-nav a { display: flex; align-items: center; padding: 1.5rem 1.5rem; color: #a0aec0; text-decoration: none; font-weight: 500; font-size: 1.2rem; transition: background-color 0.2s, color 0.2s; border-left: 4px solid transparent; white-space: nowrap; overflow: hidden; } 
+                .sidebar-nav a { 
+                    display: flex; 
+                    align-items: center; 
+                    padding: 1.5rem 1rem; /* Adjust padding for collapsed state */
+                    color: #a0aec0; 
+                    text-decoration: none; 
+                    font-weight: 500; 
+                    font-size: 1rem; 
+                    transition: background-color 0.2s, color 0.2s; 
+                    border-left: 4px solid transparent; 
+                } 
                 .sidebar-nav a:hover { background-color: #2d3748; color: #ffffff; } 
                 .sidebar-nav a.active { background-color: #2d3748; color: #ffffff; border-left-color: #27ae60; } 
-                .sidebar-nav .icon { margin-right: 1.1rem; width: 22px; height: 22px; flex-shrink: 0; } 
-                .sidebar-footer { padding: 1.5rem; border-top: 1px solid #2d3748; flex-shrink: 0; } 
-                .logout-button { width: 100%; display: flex; align-items: center; justify-content: center; padding: 0.75rem; background-color: transparent; color: #a0aec0; border: 1px solid #4a5568; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; white-space: nowrap; overflow: hidden; transition: background-color 0.2s, color 0.2s; } 
+                .sidebar-nav .icon { 
+                    margin-right: 1rem; 
+                    min-width: 22px; 
+                    height: 22px; 
+                    flex-shrink: 0; 
+                } 
+                .sidebar:hover .sidebar-nav .icon {
+                     margin-right: 1.1rem; /* Restore spacing on expand */
+                }
+
+                .sidebar-footer { padding: 1.5rem 1rem; border-top: 1px solid #2d3748; flex-shrink: 0; } 
+                .logout-button { 
+                    width: 100%; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    padding: 0.75rem 0; /* Adjusted padding */
+                    background-color: transparent; 
+                    color: #a0aec0; 
+                    border: 1px solid #4a5568; 
+                    border-radius: 8px; 
+                    font-size: 1rem; 
+                    font-weight: 500; 
+                    cursor: pointer; 
+                    transition: background-color 0.2s, color 0.2s; 
+                } 
                 .logout-button:hover { background-color: #e53e3e; border-color: #e53e3e; color: #ffffff; } 
-                .logout-button .icon { margin-right: 0.5rem; } 
+                .logout-button .icon { margin-right: 0; } 
+                
+                /* Ensure mobile responsiveness (small screens keep it collapsed permanently) */
                 @media (max-width: 768px) { 
-                    .sidebar { width: var(--sidebar-width-collapsed); } 
-                    .sidebar-header h3, .sidebar-nav a span:not(.icon), .logout-button span:not(.icon) { display: none; } 
+                    .sidebar { width: var(--sidebar-width-collapsed) !important; } 
+                    .sidebar:hover { width: var(--sidebar-width-collapsed) !important; }
+                    .main-content { margin-left: var(--sidebar-width-collapsed) !important; padding: 1rem; } 
+                    .sidebar:hover ~ .main-content { margin-left: var(--sidebar-width-collapsed) !important; }
+                    
+                    /* Hide text completely on small screens */
+                    .sidebar-header h3, .sidebar-nav a span:not(.icon), .logout-button span:not(.icon) { 
+                        display: none; 
+                    } 
                     .sidebar-nav a { justify-content: center; padding: 1rem 0; } 
-                    .sidebar-nav .icon { margin-right: 0; } 
-                    .main-content { margin-left: var(--sidebar-width-collapsed); padding: 1rem; } 
-                    .logout-button .icon { margin: 0; } 
+                    .logout-button { justify-content: center; } 
+                    .logout-button .icon { margin: 0; }
                 }
             `}</style>
             <div className="main-content-wrapper">
