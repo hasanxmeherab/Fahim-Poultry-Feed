@@ -1,5 +1,3 @@
-// frontend/src/pages/BatchReportPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams } from 'react-router-dom';

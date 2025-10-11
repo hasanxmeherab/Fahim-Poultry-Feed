@@ -1,5 +1,3 @@
-// frontend/src/components/BatchInfoCard.jsx
-
 import React, { useState } from 'react';
 import api from '../api/api';
 import { 

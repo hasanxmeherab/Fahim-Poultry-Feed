@@ -1,5 +1,3 @@
-// frontend/src/pages/EditCustomerPage.jsx
-
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams, useNavigate } from 'react-router-dom';

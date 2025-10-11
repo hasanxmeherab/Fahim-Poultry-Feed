@@ -1,5 +1,3 @@
-// backend/controllers/transactionController.js
-
 const Transaction = require('../models/transactionModel');
 const mongoose = require('mongoose');
 

@@ -1,5 +1,3 @@
-// frontend/src/pages/CustomerDetailsPage.jsx
-
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api.js';
 import { useParams } from 'react-router-dom';

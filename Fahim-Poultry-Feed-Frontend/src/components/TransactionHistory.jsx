@@ -1,5 +1,3 @@
-// frontend/src/components/TransactionHistory.jsx
-
 import React from 'react';
 import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Pagination, Box, Button } from '@mui/material';
 
