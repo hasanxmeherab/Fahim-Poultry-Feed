@@ -188,7 +188,7 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                     </Box>
                     {batch.discounts?.length > 0 ? (
                         <Table size="small">
-                            <TableBody>{batch.discounts.map(d => ( <TableRow key={d._id}> <TableCell sx={{p: 1, border: 'none'}}>{d.description}</TableCell> <TableCell sx={{p: 1, border: 'none'}} align="right">{d.amount.toFixed(2)}</TableCell> {batch.status === 'Active' && (<TableCell sx={{p: 0, border: 'none', width: '30px'}} align="right"><Button onClick={() => handleRemoveDiscount(d._id)} size="small" color="error" sx={{ minWidth: 'auto', p: 0.5 }}>X</Button></TableCell>)}</TableRow>))}</TableBody>
+                            <TableBody>{batch.discounts.map(d => (<TableRow key={d._id}> <TableCell sx={{p: 1, border: 'none'}}>{d.description}</TableCell> <TableCell sx={{p: 1, border: 'none'}} align="right">{d.amount.toFixed(2)}</TableCell> {batch.status === 'Active' && (<TableCell sx={{p: 0, border: 'none', width: '30px'}} align="right"><Button onClick={() => handleRemoveDiscount(d._id)} size="small" color="error" sx={{ minWidth: 'auto', p: 0.5 }}>X</Button></TableCell>)}</TableRow>))}</TableBody>
                         </Table>
                     ) : (<Typography variant="body2" color="text.secondary">No discounts applied.</Typography>)}
                 </Box>
@@ -234,7 +234,7 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                     <TableContainer component={Paper} sx={{mt: 2, boxShadow: 'none'}}>
                         <Table size="small">
                             <TableHead><TableRow><TableCell>Product</TableCell><TableCell align="right">Quantity</TableCell></TableRow></TableHead>
-                            <TableBody>{batchDetails.productSummary.map(item => ( <TableRow key={item.name}><TableCell>{item.name}</TableCell><TableCell align="right">{item.quantity}</TableCell></TableRow>))}</TableBody>
+                            <TableBody>{batchDetails.productSummary.map(item => (<TableRow key={item.name}><TableCell>{item.name}</TableCell><TableCell align="right">{item.quantity}</TableCell></TableRow>))}</TableBody>
                         </Table>
                     </TableContainer>
                 </Box></Fade>

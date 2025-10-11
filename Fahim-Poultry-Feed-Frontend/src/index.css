@@ -2,40 +2,6 @@
 body {
   background-color: #f4f7f9;
 }
-
-/* Main Layout - A simple container for centered content */
-main {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* Dashboard Styles */
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-.stat-card {
-  background: white;
-  padding: 20px;
-  border-radius: 5px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-align: center;
-}
-.stat-card h3 {
-  margin-top: 0;
-  color: #555;
-  font-size: 16px;
-}
-.stat-card p {
-  font-size: 36px;
-  font-weight: bold;
-  margin: 10px 0 0 0;
-  color: #2c3e50;
-}
-
 /* Print Utility Styles */
 @page {
   /* This helps remove browser headers/footers */
@@ -63,17 +29,4 @@ main {
     left: 20px;
     width: calc(100% - 40px);
   }
-}
-
-/* Footer Styles */
-.app-footer {
-  display: flex;
-  justify-content: center; /* Aligns items to the center */
-  align-items: center;
-  gap: 200px; /* Adds space between the two text elements */
-  padding: 20px;
-  margin-top: 40px;
-  color: #7f8c8d;
-  border-top: 1px solid #ecf0f1;
-  font-size: 16px;
 }

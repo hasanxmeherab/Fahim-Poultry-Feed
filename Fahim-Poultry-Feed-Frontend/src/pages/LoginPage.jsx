@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import api from '../api/api';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // MUI Imports
 import { Box, Paper, Typography, TextField, Button, Link } from '@mui/material';
@@ -11,6 +13,9 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -20,8 +25,8 @@ const LoginPage = () => {
     setError('');
     try {
         const response = await api.post('/users/login', formData);
-        localStorage.setItem('userToken', response.data.token);
-        window.location.href = '/';
+        login(response.data.token);
+        navigate('/');
     } catch (err) {
         setError('Invalid username or password.');
     }
@@ -123,12 +128,10 @@ const LoginPage = () => {
             </Link>
           </Box>
         </Paper>
-
-        {/* --- ADDED THIS NEW BOX FOR THE TEXT --- */}
         <Box
           sx={{
             position: 'absolute',
-            bottom: '2rem', // Positioned 2rem from the bottom
+            bottom: '2rem',
             width: '100%',
             textAlign: 'center',
           }}

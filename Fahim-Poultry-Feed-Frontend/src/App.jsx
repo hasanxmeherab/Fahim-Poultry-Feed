@@ -1,18 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import api from './api/api';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-
-//Toast notification
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // MUI Imports
-import { Box, Typography } from '@mui/material';
-import { Card, Grid, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
-
-// ---MUI ICON IMPORTS ---
+import { Box, Typography, CircularProgress } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -22,110 +14,39 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-// Core Components
+// Core Components & Context
 import ProtectedRoute from './components/ProtectedRoute';
+import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 
-// Page Components
-import CustomerDetailsPage from './pages/CustomerDetailsPage';
-import SalesReportPage from './pages/SalesReportPage';
-import EditProductPage from './pages/EditProductPage';
-import EditCustomerPage from './pages/EditCustomerPage';
-import CustomerListPage from './pages/CustomerListPage';
-import AddCustomerPage from './pages/AddCustomerPage';
-import ProductListPage from './pages/ProductListPage';
-import AddProductPage from './pages/AddProductPage';
-import MakeSalePage from './pages/MakeSalePage';
-import ReceiptPage from './pages/ReceiptPage';
-import HistoryPage from './pages/HistoryPage';
-import BatchReportPage from './pages/BatchReportPage';
-import WholesalePage from './pages/WholesalePage';
-import AddWholesaleBuyerPage from './pages/AddWholesaleBuyerPage';
-import EditWholesaleBuyerPage from './pages/EditWholesaleBuyerPage';
-import WholesaleBuyerDetailsPage from './pages/WholesaleBuyerDetailsPage';
-import AddWholesaleProductPage from './pages/AddWholesaleProductPage';
-import EditWholesaleProductPage from './pages/EditWholesaleProductPage';
-import ErrorPage from './pages/ErrorPage';
+// --- Create a loading component for Suspense ---
+const LoadingSpinner = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress />
+    </Box>
+);
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-
-
-// Using the original, simpler HomePage component from your old version
-const HomePage = () => {
-    const [stats, setStats] = useState(null);
-    const [chartData, setChartData] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        const fetchAllData = async () => {
-            try {
-                const [statsRes, chartsRes] = await Promise.all([
-                    api.get('/dashboard/stats'),
-                    api.get('/reports/dashboard-charts')
-                ]);
-                setStats(statsRes.data);
-                setChartData(chartsRes.data);
-            } catch (err) {
-                setError('Failed to fetch dashboard data.');
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchAllData();
-    }, []);
-
-    const salesChartOptions = {
-        responsive: true,
-        plugins: { legend: { position: 'top' }, title: { display: true, text: 'Daily Sales (Last 7 Days)' } },
-    };
-
-    const salesChartData = {
-        labels: chartData?.dailySales.map(d => new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' })) || [],
-        datasets: [{
-            label: 'Revenue (TK)',
-            data: chartData?.dailySales.map(d => d.totalRevenue) || [],
-            backgroundColor: 'rgba(39, 174, 96, 0.7)',
-        }],
-    };
-
-    if (isLoading) return <p>Loading dashboard...</p>;
-    if (error) return <p style={{ color: 'red' }}>{error}</p>;
-    if (!stats) return null;
-
-    return (
-        <div>
-            <h1>Dashboard</h1>
-            <div className="stat-cards">
-                <div className="stat-card"><h3>Sales Today</h3><p>TK {stats.salesToday.toFixed(2)}</p></div>
-                <div className="stat-card"><h3>Customers with Debt</h3><p>{stats.negativeBalanceCustomers}</p></div>
-                <div className="stat-card"><h3>Products Low in Stock</h3><p>{stats.lowStockProducts}</p></div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginTop: '40px' }}>
-                <div style={{ background: 'white', padding: '20px', borderRadius: '5px' }}>
-                    <h3>Sales Trend</h3>
-                    <Bar options={salesChartOptions} data={salesChartData} />
-                </div>
-                <div style={{ background: 'white', padding: '20px', borderRadius: '5px' }}>
-                    <h3>Top Selling Products</h3>
-                    <ol style={{ paddingLeft: '20px' }}>
-                        {chartData?.topProducts.map(p => (
-                            <li key={p._id} style={{ marginBottom: '10px', fontSize: '1.1em' }}>
-                                {p._id} - <span style={{ fontWeight: 'bold' }}>{p.totalQuantitySold} units</span>
-                            </li>
-                        ))}
-                    </ol>
-                </div>
-            </div>
-            <h2>Recent Transactions</h2>
-            <table>
-                <thead><tr><th>Date</th><th>Type</th><th>Details</th></tr></thead>
-                <tbody>{stats.recentTransactions.map(t => (<tr key={t._id}><td>{new Date(t.createdAt).toLocaleString()}</td><td>{t.type}</td><td>{t.notes}</td></tr>))}</tbody>
-            </table>
-        </div>
-    );
-};
+// --- Lazily import all page components for code splitting ---
+const HomePage = lazy(() => import('./pages/DashboardPage'));
+const CustomerDetailsPage = lazy(() => import('./pages/CustomerDetailsPage'));
+const SalesReportPage = lazy(() => import('./pages/SalesReportPage'));
+const EditProductPage = lazy(() => import('./pages/EditProductPage'));
+const EditCustomerPage = lazy(() => import('./pages/EditCustomerPage'));
+const CustomerListPage = lazy(() => import('./pages/CustomerListPage'));
+const AddCustomerPage = lazy(() => import('./pages/AddCustomerPage'));
+const ProductListPage = lazy(() => import('./pages/ProductListPage'));
+const AddProductPage = lazy(() => import('./pages/AddProductPage'));
+const MakeSalePage = lazy(() => import('./pages/MakeSalePage'));
+const ReceiptPage = lazy(() => import('./pages/ReceiptPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
+const BatchReportPage = lazy(() => import('./pages/BatchReportPage'));
+const WholesalePage = lazy(() => import('./pages/WholesalePage'));
+const AddWholesaleBuyerPage = lazy(() => import('./pages/AddWholesaleBuyerPage'));
+const EditWholesaleBuyerPage = lazy(() => import('./pages/EditWholesaleBuyerPage'));
+const WholesaleBuyerDetailsPage = lazy(() => import('./pages/WholesaleBuyerDetailsPage'));
+const AddWholesaleProductPage = lazy(() => import('./pages/AddWholesaleProductPage'));
+const EditWholesaleProductPage = lazy(() => import('./pages/EditWholesaleProductPage'));
+const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 
 
 const Sidebar = ({ handleLogout }) => {
@@ -180,25 +101,22 @@ const Footer = () => {
 const AppContent = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const token = localStorage.getItem('userToken');
+    const { isAuthenticated, logout } = useAuth(); // <-- Use context for auth state
 
     const handleLogout = () => {
-        localStorage.removeItem('userToken');
+        logout();
         navigate('/login');
     };
 
     const isAuthPage = location.pathname === '/login';
     const isReceiptPage = location.pathname === '/receipt';
 
-    const showLayout = token && !isAuthPage && !isReceiptPage;
+    const showLayout = isAuthenticated && !isAuthPage && !isReceiptPage;
 
     return (
         <div className="app-layout">
             <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
             
-            {/* ---------------------------------------------------------------------------------- */}
-            {/* UPDATED CSS FOR HOVER-TO-EXPAND SIDEBAR */}
-            {/* ---------------------------------------------------------------------------------- */}
             <style>{`
                 :root { 
                     --sidebar-width-expanded: 240px; 
@@ -208,7 +126,6 @@ const AppContent = () => {
                 .app-layout { display: flex; min-height: 100vh; flex-direction: column; } 
                 .main-content-wrapper { display: flex; flex-grow: 1; }
                 
-                /* DEFAULT STATE: COLLAPSED */
                 .sidebar { 
                     width: var(--sidebar-width-collapsed); 
                     background-color: #1a2c3a; 
@@ -221,25 +138,21 @@ const AppContent = () => {
                     left: 0; 
                     transition: width 0.3s ease; 
                     flex-shrink: 0; 
-                    z-index: 1000; /* Ensure it stays above content */
-                    overflow-x: hidden; /* Hide horizontal scrollbar when collapsed */
+                    z-index: 1000;
+                    overflow-x: hidden;
                 } 
                 
-                /* HOVER STATE: EXPAND */
                 .sidebar:hover {
                     width: var(--sidebar-width-expanded);
                 }
 
-                /* Main Content Area */
                 .main-content { 
                     flex-grow: 1; 
                     padding: 2rem; 
-                    /* Start with collapsed margin, match hover transition */
                     margin-left: var(--sidebar-width-collapsed); 
                     transition: margin-left 0.3s ease; 
                 } 
                 
-                /* Adjust main content margin when sidebar is hovered */
                 .sidebar:hover ~ .main-content {
                     margin-left: var(--sidebar-width-expanded);
                 }
@@ -248,17 +161,15 @@ const AppContent = () => {
                 
                 .sidebar-header { padding: 1.5rem; text-align: center; border-bottom: 1px solid #2d3748; flex-shrink: 0; } 
                 
-                /* Sidebar Text Elements */
                 .sidebar-header h3, 
                 .sidebar-nav a span:not(.icon), 
                 .logout-button span:not(.icon) { 
-                    opacity: 0; /* Hidden by default */
+                    opacity: 0;
                     white-space: nowrap; 
                     overflow: hidden; 
                     transition: opacity 0.3s ease; 
                 } 
 
-                /* Show text on hover */
                 .sidebar:hover .sidebar-header h3,
                 .sidebar:hover .sidebar-nav a span:not(.icon),
                 .sidebar:hover .logout-button span:not(.icon) {
@@ -272,7 +183,7 @@ const AppContent = () => {
                 .sidebar-nav a { 
                     display: flex; 
                     align-items: center; 
-                    padding: 1.5rem 1rem; /* Adjust padding for collapsed state */
+                    padding: 1.5rem 1rem;
                     color: #a0aec0; 
                     text-decoration: none; 
                     font-weight: 500; 
@@ -289,7 +200,7 @@ const AppContent = () => {
                     flex-shrink: 0; 
                 } 
                 .sidebar:hover .sidebar-nav .icon {
-                     margin-right: 1.1rem; /* Restore spacing on expand */
+                     margin-right: 1.1rem;
                 }
 
                 .sidebar-footer { padding: 1.5rem 1rem; border-top: 1px solid #2d3748; flex-shrink: 0; } 
@@ -298,7 +209,7 @@ const AppContent = () => {
                     display: flex; 
                     align-items: center; 
                     justify-content: center; 
-                    padding: 0.75rem 0; /* Adjusted padding */
+                    padding: 0.75rem 0;
                     background-color: transparent; 
                     color: #a0aec0; 
                     border: 1px solid #4a5568; 
@@ -311,17 +222,10 @@ const AppContent = () => {
                 .logout-button:hover { background-color: #e53e3e; border-color: #e53e3e; color: #ffffff; } 
                 .logout-button .icon { margin-right: 0; } 
                 
-                /* Ensure mobile responsiveness (small screens keep it collapsed permanently) */
                 @media (max-width: 768px) { 
-                    .sidebar { width: var(--sidebar-width-collapsed) !important; } 
-                    .sidebar:hover { width: var(--sidebar-width-collapsed) !important; }
-                    .main-content { margin-left: var(--sidebar-width-collapsed) !important; padding: 1rem; } 
-                    .sidebar:hover ~ .main-content { margin-left: var(--sidebar-width-collapsed) !important; }
-                    
-                    /* Hide text completely on small screens */
-                    .sidebar-header h3, .sidebar-nav a span:not(.icon), .logout-button span:not(.icon) { 
-                        display: none; 
-                    } 
+                    .sidebar, .sidebar:hover { width: var(--sidebar-width-collapsed) !important; } 
+                    .main-content, .sidebar:hover ~ .main-content { margin-left: var(--sidebar-width-collapsed) !important; padding: 1rem; } 
+                    .sidebar-header h3, .sidebar-nav a span:not(.icon), .logout-button span:not(.icon) { display: none; } 
                     .sidebar-nav a { justify-content: center; padding: 1rem 0; } 
                     .logout-button { justify-content: center; } 
                     .logout-button .icon { margin: 0; }
@@ -330,31 +234,34 @@ const AppContent = () => {
             <div className="main-content-wrapper">
                 {showLayout && <Sidebar handleLogout={handleLogout} />}
                 <div className={showLayout ? "main-content" : "main-content-fullscreen"}>
-                    <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route element={<ProtectedRoute />}>
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/customers" element={<CustomerListPage />} />
-                            <Route path="/add-customer" element={<AddCustomerPage />} />
-                            <Route path="/inventory" element={<ProductListPage />} />
-                            <Route path="/add-product" element={<AddProductPage />} />
-                            <Route path="/make-sale" element={<MakeSalePage />} />
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <Routes>
+                            <Route path="/login" element={<LoginPage />} />
                             <Route path="/receipt" element={<ReceiptPage />} />
-                            <Route path="/history" element={<HistoryPage />} />
-                            <Route path="/edit-customer/:id" element={<EditCustomerPage />} />
-                            <Route path="/edit-product/:id" element={<EditProductPage />} />
-                            <Route path="/reports/sales" element={<SalesReportPage />} />
-                            <Route path="/customers/:id" element={<CustomerDetailsPage />} />
-                            <Route path="/reports/batch/:id" element={<BatchReportPage />} />
-                            <Route path="/wholesale" element={<WholesalePage />} />                        
-                            <Route path="/add-wholesale-buyer" element={<AddWholesaleBuyerPage />} />
-                            <Route path="/edit-wholesale-buyer/:id" element={<EditWholesaleBuyerPage />} />
-                            <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
-                            <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
-                            <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
-                            <Route path="*" element={<ErrorPage />} />
-                        </Route>
-                    </Routes>
+                            
+                            <Route element={<ProtectedRoute />}>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/customers" element={<CustomerListPage />} />
+                                <Route path="/add-customer" element={<AddCustomerPage />} />
+                                <Route path="/edit-customer/:id" element={<EditCustomerPage />} />
+                                <Route path="/customers/:id" element={<CustomerDetailsPage />} />
+                                <Route path="/inventory" element={<ProductListPage />} />
+                                <Route path="/add-product" element={<AddProductPage />} />
+                                <Route path="/edit-product/:id" element={<EditProductPage />} />
+                                <Route path="/make-sale" element={<MakeSalePage />} />
+                                <Route path="/history" element={<HistoryPage />} />
+                                <Route path="/reports/sales" element={<SalesReportPage />} />
+                                <Route path="/reports/batch/:id" element={<BatchReportPage />} />
+                                <Route path="/wholesale" element={<WholesalePage />} />                        
+                                <Route path="/add-wholesale-buyer" element={<AddWholesaleBuyerPage />} />
+                                <Route path="/edit-wholesale-buyer/:id" element={<EditWholesaleBuyerPage />} />
+                                <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
+                                <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
+                                <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
+                                <Route path="*" element={<ErrorPage />} />
+                            </Route>
+                        </Routes>
+                    </Suspense>
                 </div>
             </div>
             {showLayout && <Footer />}
