@@ -5,13 +5,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 // MUI Imports
-import { Box, Paper, Typography, TextField, Button, Link } from '@mui/material';
+import { Box, Paper, Typography, TextField, Button, Link, CircularProgress } from '@mui/material';
 import BoltIcon from '@mui/icons-material/Bolt';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); 
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -23,12 +24,15 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
     try {
         const response = await api.post('/users/login', formData);
         login(response.data.token);
         navigate('/');
     } catch (err) {
         setError('Invalid username or password.');
+        } finally {
+        setIsLoading(false);
     }
   };
 
@@ -113,8 +117,9 @@ const LoginPage = () => {
               size="large"
               color="primary"
               sx={{ mt: 2, py: 1.5, fontWeight: 600 }}
+              disabled={isLoading}
             >
-              Log In
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Log In'}
             </Button>
             
             <Link 
