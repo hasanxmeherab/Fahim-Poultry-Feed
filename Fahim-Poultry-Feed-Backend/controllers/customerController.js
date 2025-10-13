@@ -248,7 +248,16 @@ const buyFromCustomer = async (req, res, next) => {
         await session.commitTransaction();
         session.endSession();
         
-        res.status(200).json(newTransaction[0]);
+        // Get the transaction document that was just created
+        const createdTransaction = newTransaction[0];
+
+        // Populate the 'customer' field to include their name before sending
+        await createdTransaction.populate('customer', 'name'); 
+
+        // Send the populated transaction back to the frontend
+        res.status(200).json(createdTransaction);
+
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();

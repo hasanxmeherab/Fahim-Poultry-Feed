@@ -33,6 +33,7 @@ const ForgotPasswordModal = ({ isOpen, onRequestClose }) => {
             setSuccess('Success! If a matching account exists, a password reset link has been sent to your email.');
             setError(''); // Clear any previous errors
         } catch (err) {
+console.error("Firebase Error:", err);
             if (err.code === 'auth/invalid-email') {
                 setError('Please enter a valid email address.');
             } else {
