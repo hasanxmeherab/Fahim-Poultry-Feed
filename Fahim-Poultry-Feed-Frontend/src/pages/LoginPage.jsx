@@ -4,6 +4,7 @@ import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
+import { signInWithEmailAndPassword } from "firebase/auth";
 // MUI Imports
 import { Box, Paper, Typography, TextField, Button, Link, CircularProgress } from '@mui/material';
 import BoltIcon from '@mui/icons-material/Bolt';
