@@ -12,9 +12,17 @@ const AddCustomerPage = () => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'phone') {
+        // This regex replaces any character that is NOT a digit with an empty string
+        const numericValue = value.replace(/[^0-9]/g, '');
+        setFormData({ ...formData, [name]: numericValue });
+    } else {
+        setFormData({ ...formData, [name]: value });
+    }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,7 +46,7 @@ const AddCustomerPage = () => {
             </Typography>
             
             <TextField fullWidth label="Name" name="name" value={formData.name} onChange={handleChange} required sx={{ mb: 2 }} />
-            <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} />
+            <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}  />
             <TextField fullWidth label="Email (Optional)" name="email" type="email" value={formData.email} onChange={handleChange} sx={{ mb: 2 }} />
             <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} sx={{ mb: 2 }} />
             

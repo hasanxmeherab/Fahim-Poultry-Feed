@@ -11,6 +11,7 @@ const {
 
 } = require('../controllers/productController');
 const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
+const { createProductRules, validate } = require('../validation/customer.validation.js');
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ const router = express.Router();
 
 router.route('/')
     .get(firebaseAuthMiddleware , getProducts)
-    .post(firebaseAuthMiddleware , createProduct);
+    .post(firebaseAuthMiddleware, createProductRules(), validate, createProduct);
 
 //Check if sku exist
 router.get('/check-sku', firebaseAuthMiddleware, checkSkuExists);

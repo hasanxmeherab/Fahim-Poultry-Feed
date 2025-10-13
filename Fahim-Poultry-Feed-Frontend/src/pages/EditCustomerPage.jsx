@@ -34,8 +34,16 @@ const EditCustomerPage = () => {
         fetchCustomer();
     }, [id]);
 
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        if (name === 'phone') {
+            const numericValue = value.replace(/[^0-9]/g, '');
+            setFormData({ ...formData, [name]: numericValue });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -65,9 +73,8 @@ const EditCustomerPage = () => {
                 </Typography>
                 
                 <TextField fullWidth label="Name" name="name" value={formData.name} onChange={handleChange} required sx={{ mb: 2 }} />
-                <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} />
+                <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}/>
 
-                {/* --- ADDED THESE TWO FIELDS --- */}
                 <TextField fullWidth label="Email (Optional)" name="email" type="email" value={formData.email} onChange={handleChange} sx={{ mb: 2 }} />
                 <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} sx={{ mb: 2 }} />
                 

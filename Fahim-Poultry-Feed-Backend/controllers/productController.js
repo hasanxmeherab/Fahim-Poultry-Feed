@@ -45,13 +45,9 @@ const getProduct = async (req, res, next) => {
 // @desc   Create a new product
 // @route  POST /api/products
 const createProduct = async (req, res, next) => {
-  const { name, sku, price, quantity } = req.body;
-
-  if (!name || !sku || !price) {
-    return res.status(400).json({ error: 'Name, SKU, and Price are required.' });
-  }
 
   try {
+    const { name, sku, price, quantity } = req.body;
     const product = await Product.create({ name, sku, price, quantity });
     res.status(201).json(product);
   } catch (error) {
