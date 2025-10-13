@@ -7,7 +7,7 @@ const {
     updateProduct,
     deleteProduct  
 } = require('../controllers/wholesaleProductController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 // Routes for the collection
 router.route('/')

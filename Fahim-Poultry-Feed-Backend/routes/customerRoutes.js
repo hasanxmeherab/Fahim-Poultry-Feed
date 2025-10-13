@@ -10,7 +10,7 @@ const {
     updateCustomer,
     buyFromCustomer
 } = require('../controllers/customerController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 const router = express.Router();
 

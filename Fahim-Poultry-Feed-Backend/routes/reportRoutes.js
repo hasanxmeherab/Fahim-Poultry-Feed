@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getSalesReport, getBatchReport, getDashboardCharts } = require('../controllers/reportController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 router.get('/sales', firebaseAuthMiddleware, getSalesReport);
 router.get('/batch/:id', firebaseAuthMiddleware, getBatchReport);

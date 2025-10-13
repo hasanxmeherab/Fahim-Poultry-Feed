@@ -7,7 +7,7 @@ const {
     addDiscount,       
     removeDiscount   
 } = require('../controllers/batchController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 router.post('/start', firebaseAuthMiddleware, startNewBatch);
 router.get('/customer/:id', firebaseAuthMiddleware, getBatchesForCustomer);

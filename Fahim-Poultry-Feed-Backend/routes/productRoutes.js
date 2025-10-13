@@ -10,7 +10,7 @@ const {
   deleteProduct,
 
 } = require('../controllers/productController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 const router = express.Router();
 

@@ -6,7 +6,7 @@ const {
     getSales,
     createWholesaleSale
 } = require('../controllers/saleController');
-const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
+const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
 
 // Routes for the base /api/sales URL
 router.route('/')
