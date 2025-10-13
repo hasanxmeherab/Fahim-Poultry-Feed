@@ -16,6 +16,14 @@ const createProductRules = () => {
   ];
 };
 
+const stockUpdateRules = () => {
+  return [
+    // Checks for either 'addQuantity' or 'removeQuantity' in the request body
+    body('addQuantity').optional().isInt({ gt: 0 }).withMessage('Quantity to add must be a positive whole number.'),
+    body('removeQuantity').optional().isInt({ gt: 0 }).withMessage('Quantity to remove must be a positive whole number.')
+  ];
+};
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) {
@@ -32,5 +40,6 @@ const validate = (req, res, next) => {
 module.exports = {
   createCustomerRules,
   createProductRules,
+  stockUpdateRules, // <-- Export the new rules
   validate,
 };

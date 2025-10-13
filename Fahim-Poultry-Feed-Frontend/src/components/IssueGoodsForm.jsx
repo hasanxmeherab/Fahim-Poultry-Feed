@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
-import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton } from '@mui/material';
+import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton, CircularProgress  } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js'; // Import notification utilities
 
@@ -14,6 +14,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
     const [isCashPayment, setIsCashPayment] = useState(false);
     const [error, setError] = useState('');
     const [inputValue, setInputValue] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     // --- NEW: Calculate total amount ---
     const totalAmount = saleItems.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -81,7 +82,7 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
             setError('Please add at least one item to issue.');
             return;
         }
-        
+        setIsLoading(true);
         // Prepare the payload for the backend
         const saleData = {
             customerId: customer._id,
@@ -126,6 +127,8 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
         } catch (err) {
             // Use showErrorToast for cleaner error display
             showErrorToast(err, 'Failed to issue items.'); 
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -191,8 +194,15 @@ const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
                 label="Paid in Cash 💵"
                 sx={{ mt: 2 }}
             />
-            <Button onClick={handleIssueGoods} variant="contained" color="success" fullWidth sx={{ mt: 1 }} disabled={saleItems.length === 0}>
-                Confirm and Issue Items
+             <Button 
+              onClick={handleIssueGoods} 
+              variant="contained" 
+              color="success" 
+              fullWidth 
+              sx={{ mt: 1 }} 
+              disabled={isLoading || saleItems.length === 0}
+            >
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm and Issue Items'}
             </Button>
         </Paper>
     );

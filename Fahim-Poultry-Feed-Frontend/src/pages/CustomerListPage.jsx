@@ -6,8 +6,8 @@ import { Link } from 'react-router-dom';
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, Modal, Fade,
-    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+    TableRow, Paper, Modal, Fade, Dialog, DialogActions, 
+    DialogContent, DialogContentText, DialogTitle, CircularProgress
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
@@ -34,6 +34,7 @@ const CustomerListPage = () => {
     const [modalType, setModalType] = useState('');
     const [amount, setAmount] = useState('');
     const [modalError, setModalError] = useState('');
+    const [isModalLoading, setIsModalLoading] = useState(false);
 
     // State for the delete confirmation dialog
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -70,6 +71,7 @@ const CustomerListPage = () => {
             setModalError("Please enter a valid positive amount.");
             return;
         }
+        setIsModalLoading(true);
         setModalError('');
         const endpoint = `/customers/${currentCustomer._id}/${modalType}`;
         try {
@@ -79,6 +81,8 @@ const CustomerListPage = () => {
             closeModal();
         } catch (err) {
             showErrorToast(err, `Failed to process ${modalType}.`);
+        } finally {
+            setIsModalLoading(false);
         }
     };
  
@@ -172,7 +176,9 @@ const CustomerListPage = () => {
                             <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={closeModal}>Cancel</Button>
-                                <Button type="submit" variant="contained">Confirm</Button>
+                                <Button type="submit" variant="contained" disabled={isModalLoading}>
+                                    {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
+                                </Button>
                             </Box>
                         </Box>
                     </Box>

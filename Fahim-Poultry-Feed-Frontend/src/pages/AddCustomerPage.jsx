@@ -3,13 +3,14 @@ import api from '../api/api.js';
 import { useNavigate } from 'react-router-dom';
 
 // MUI Imports
-import { Box, Button, TextField, Typography, Paper } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, CircularProgress  } from '@mui/material';
 
 // Import our notification utility
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 const AddCustomerPage = () => {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
 const handleChange = (e) => {
@@ -26,6 +27,7 @@ const handleChange = (e) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       await api.post('/customers', formData);
       
@@ -35,6 +37,8 @@ const handleChange = (e) => {
     
     } catch (err) {
       showErrorToast(err, 'Failed to add customer.');
+      } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,8 +54,10 @@ const handleChange = (e) => {
             <TextField fullWidth label="Email (Optional)" name="email" type="email" value={formData.email} onChange={handleChange} sx={{ mb: 2 }} />
             <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} sx={{ mb: 2 }} />
             
-            <Button type="submit" variant="contained" fullWidth>
-                Save Customer
+            <Button type="submit" variant="contained" fullWidth
+            disabled={isLoading}
+            >
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Save Customer'}
             </Button>
         </Paper>
     </Box>

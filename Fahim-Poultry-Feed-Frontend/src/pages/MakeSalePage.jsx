@@ -21,6 +21,7 @@ const MakeSalePage = () => {
     const [isRandomCustomer, setIsRandomCustomer] = useState(false);
     const [isCashPayment, setIsCashPayment] = useState(false);
     const [randomCustomerName, setRandomCustomerName] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
     // State for Async Customer Search
     const [customerOpen, setCustomerOpen] = useState(false);
@@ -106,6 +107,7 @@ const MakeSalePage = () => {
             setError('Please add at least one item.');
             return;
         }
+        setIsLoading(true);
 
         const saleData = {
             isRandomCustomer: isRandomCustomer,
@@ -140,6 +142,8 @@ const MakeSalePage = () => {
             navigate('/');
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to complete sale.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -233,9 +237,17 @@ const MakeSalePage = () => {
                     label="Paid in Cash 💵" sx={{ mt: 2, display: 'block' }}
                 />
                 
-                <Button onClick={handleSubmitSale} variant="contained" color="success" size="large" fullWidth sx={{ mt: 2 }}>
-                    Complete Sale
-                </Button>
+                <Button 
+              onClick={handleSubmitSale} 
+              variant="contained" 
+              color="success" 
+              size="large" 
+              fullWidth 
+              sx={{ mt: 2 }}
+              disabled={isLoading}
+            >
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Complete Sale'}
+            </Button>
             </Paper>
         </Box>
     );

@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
-import { Box, Button, TextField, Typography, Paper } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, CircularProgress  } from '@mui/material';
 
 const AddProductPage = () => {
     const [formData, setFormData] = useState({ name: '', sku: '', price: '', quantity: '' });
     const [submitError, setSubmitError] = useState(null);
     const [skuError, setSkuError] = useState(''); // State for real-time SKU validation
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
     // This 'useEffect' hook watches for changes to the SKU input field
@@ -54,13 +55,15 @@ const AddProductPage = () => {
             showErrorToast({ message: 'Please fix the SKU error before submitting.' });
             return;
         }
-        //setSubmitError(null);
+        setIsLoading(true);
         try {
             await api.post('/products', formData);
             showSuccessToast('Product added successfully!');
             navigate('/inventory');
         } catch (err) {
             showErrorToast(err, 'Failed to add product.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -117,8 +120,8 @@ const AddProductPage = () => {
                 
                 {submitError && <Typography color="error" sx={{ mb: 2 }}>{submitError}</Typography>}
                 
-                <Button type="submit" variant="contained" disabled={!!skuError} fullWidth>
-                    Save Product
+                <Button type="submit" variant="contained" disabled={isLoading || !!skuError} fullWidth>
+                    {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Save Product'}
                 </Button>
             </Paper>
         </Box>

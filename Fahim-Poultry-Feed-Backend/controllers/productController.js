@@ -105,10 +105,6 @@ const addStock = async (req, res, next) => {
     const { id } = req.params;
     const { addQuantity } = req.body;
 
-    if (typeof addQuantity !== 'number' || addQuantity <= 0) {
-        return res.status(400).json({ error: 'Invalid quantity provided.' });
-    }
-
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -148,10 +144,6 @@ const addStock = async (req, res, next) => {
 const removeStock = async (req, res, next) => {
     const { id } = req.params;
     const { removeQuantity } = req.body;
-
-    if (typeof removeQuantity !== 'number' || removeQuantity <= 0) {
-        return res.status(400).json({ error: 'Invalid quantity provided.' });
-    }
 
     const session = await mongoose.startSession();
     session.startTransaction();

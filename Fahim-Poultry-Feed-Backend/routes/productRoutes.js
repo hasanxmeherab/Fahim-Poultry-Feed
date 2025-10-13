@@ -11,7 +11,7 @@ const {
 
 } = require('../controllers/productController');
 const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
-const { createProductRules, validate } = require('../validation/customer.validation.js');
+const { createProductRules, stockUpdateRules, validate } = require('../validation/customer.validation.js');
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.route('/:id')
     .patch(firebaseAuthMiddleware , updateProduct)
     .delete(firebaseAuthMiddleware , deleteProduct);
 
-router.patch('/:id/addstock', firebaseAuthMiddleware , addStock);
-router.patch('/:id/removestock', firebaseAuthMiddleware , removeStock);
+router.patch('/:id/addstock', firebaseAuthMiddleware , stockUpdateRules(), validate, addStock);
+router.patch('/:id/removestock', firebaseAuthMiddleware , stockUpdateRules(), validate, removeStock);
 
 module.exports = router;
