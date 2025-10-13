@@ -10,31 +10,31 @@ const {
     updateCustomer,
     buyFromCustomer
 } = require('../controllers/customerController');
-const { protect } = require('../middleware/authMiddleware');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 // Route to get all customers
-router.get('/', protect, getCustomers);
+router.get('/', firebaseAuthMiddleware, getCustomers);
 
 // Route to create a new customer
-router.post('/', protect, createCustomer);
+router.post('/', firebaseAuthMiddleware, createCustomer);
 
 // Route to add a deposit for a specific customer
-router.patch('/:id/deposit', protect, addDeposit);
+router.patch('/:id/deposit', firebaseAuthMiddleware, addDeposit);
 
 //Make Withdrawal
-router.patch('/:id/withdrawal', protect, makeWithdrawal);
+router.patch('/:id/withdrawal', firebaseAuthMiddleware, makeWithdrawal);
 
 //Delete Customer
-router.delete('/:id', protect, deleteCustomer);
+router.delete('/:id', firebaseAuthMiddleware, deleteCustomer);
 
 //Update Customer
-router.patch('/:id', protect, updateCustomer);
+router.patch('/:id', firebaseAuthMiddleware, updateCustomer);
 
-router.get('/:id', protect, getCustomer);
+router.get('/:id', firebaseAuthMiddleware, getCustomer);
 
 //buying from a customer
-router.post('/buyback', protect, buyFromCustomer);
+router.post('/buyback', firebaseAuthMiddleware, buyFromCustomer);
 
 module.exports = router;

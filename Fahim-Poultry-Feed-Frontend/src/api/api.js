@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../firebase';
 
 // Create a new instance of axios
 const api = axios.create({
@@ -6,19 +7,18 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
-// This is an "interceptor" that runs before every request is sent.
+// This interceptor now gets the token directly from the signed-in Firebase user
 api.interceptors.request.use(
-    (config) => {
-        // Get the token from localStorage
-        const token = localStorage.getItem('userToken');
-        if (token) {
-            // If the token exists, add it to the Authorization header
+    async (config) => {
+        const user = auth.currentUser;
+        if (user) {
+            // getIdToken(true) forces a refresh if the token is expired
+            const token = await user.getIdToken(true); 
             config.headers['Authorization'] = `Bearer ${token}`;
         }
         return config;
     },
     (error) => {
-        // Do something with request error
         return Promise.reject(error);
     }
 );

@@ -3,13 +3,13 @@ import api from '../api/api';
 import ForgotPasswordModal from '../components/ForgotPasswordModal';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
+import { auth } from '../firebase';
 // MUI Imports
 import { Box, Paper, Typography, TextField, Button, Link, CircularProgress } from '@mui/material';
 import BoltIcon from '@mui/icons-material/Bolt';
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({ username: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false); 
@@ -26,13 +26,24 @@ const LoginPage = () => {
     setError('');
     setIsLoading(true);
     try {
-        const response = await api.post('/users/login', formData);
-        login(response.data.token);
-        navigate('/');
+      // Use Firebase to sign in
+      const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      
+      // Get the Firebase ID Token
+      const idToken = await userCredential.user.getIdToken();
+      
+      // Pass the token to our AuthContext
+      login(idToken);
+      
+      navigate('/');
     } catch (err) {
-        setError('Invalid username or password.');
-        } finally {
-        setIsLoading(false);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else {
+        setError('An error occurred. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,8 +60,7 @@ const LoginPage = () => {
           justifyContent: 'center', 
           alignItems: 'center', 
           minHeight: '100vh', 
-          bgcolor: '#f7f9fc',
-          position: 'relative' // Needed for absolute positioning of the text
+          bgcolor: '#f7f9fc'
         }}
       >
         <Paper 
@@ -91,9 +101,10 @@ const LoginPage = () => {
             <TextField
               fullWidth
               margin="normal"
-              id="username"
-              name="username"
-              label="Username"
+              id="email"
+              name="email"
+              label="Email Address"
+              type="email"
               onChange={handleChange}
               required
             />

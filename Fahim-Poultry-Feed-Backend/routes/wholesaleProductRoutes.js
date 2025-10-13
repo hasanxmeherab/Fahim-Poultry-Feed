@@ -7,17 +7,17 @@ const {
     updateProduct,
     deleteProduct  
 } = require('../controllers/wholesaleProductController');
-const { protect } = require('../middleware/authMiddleware');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
 // Routes for the collection
 router.route('/')
-    .get(protect, getProducts)
-    .post(protect, createProduct);
+    .get(firebaseAuthMiddleware, getProducts)
+    .post(firebaseAuthMiddleware, createProduct);
 
 // Routes for a single document by ID
 router.route('/:id')
-    .get(protect, getProductById)
-    .patch(protect, updateProduct)
-    .delete(protect, deleteProduct); 
+    .get(firebaseAuthMiddleware, getProductById)
+    .patch(firebaseAuthMiddleware, updateProduct)
+    .delete(firebaseAuthMiddleware, deleteProduct); 
 
 module.exports = router;

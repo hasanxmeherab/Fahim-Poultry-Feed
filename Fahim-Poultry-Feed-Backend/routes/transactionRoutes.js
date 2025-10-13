@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getTransactions, getTransactionsByBatch, getTransactionsForBuyer } = require('../controllers/transactionController');const { protect } = require('../middleware/authMiddleware');
+const { getTransactions, getTransactionsByBatch, getTransactionsForBuyer } = require('../controllers/transactionController');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
-router.get('/', protect, getTransactions);
-router.get('/batch/:batchId', protect, getTransactionsByBatch);
-router.get('/wholesale-buyer/:buyerId', protect, getTransactionsForBuyer);
+router.get('/', firebaseAuthMiddleware, getTransactions);
+router.get('/batch/:batchId', firebaseAuthMiddleware, getTransactionsByBatch);
+router.get('/wholesale-buyer/:buyerId', firebaseAuthMiddleware, getTransactionsForBuyer);
 
 module.exports = router;

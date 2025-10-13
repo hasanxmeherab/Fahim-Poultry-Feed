@@ -7,13 +7,13 @@ const {
     addDiscount,       
     removeDiscount   
 } = require('../controllers/batchController');
-const { protect } = require('../middleware/authMiddleware');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
-router.post('/start', protect, startNewBatch);
-router.get('/customer/:id', protect, getBatchesForCustomer);
-router.patch('/:id/buyback', protect, buyBackAndEndBatch);
-router.post('/:id/discount', protect, addDiscount);
-router.delete('/:id/discount/:discountId', protect, removeDiscount);
+router.post('/start', firebaseAuthMiddleware, startNewBatch);
+router.get('/customer/:id', firebaseAuthMiddleware, getBatchesForCustomer);
+router.patch('/:id/buyback', firebaseAuthMiddleware, buyBackAndEndBatch);
+router.post('/:id/discount', firebaseAuthMiddleware, addDiscount);
+router.delete('/:id/discount/:discountId', firebaseAuthMiddleware, removeDiscount);
 
 
 module.exports = router;

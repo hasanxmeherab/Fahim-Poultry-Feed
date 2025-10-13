@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
 // Import all the functions from the controller
 const {
@@ -15,17 +15,17 @@ const {
 
 // Routes for the base URL (/api/wholesale-buyers)
 router.route('/')
-     .get(protect, getBuyers)
-     .post(protect, createBuyer);
+     .get(firebaseAuthMiddleware, getBuyers)
+     .post(firebaseAuthMiddleware, createBuyer);
 
 // Routes for a specific buyer by ID (/api/wholesale-buyers/:id)
 router.route('/:id')
-     .get(protect, getBuyerById)
-     .patch(protect, updateBuyer)
-     .delete(protect, deleteBuyer);
+     .get(firebaseAuthMiddleware, getBuyerById)
+     .patch(firebaseAuthMiddleware, updateBuyer)
+     .delete(firebaseAuthMiddleware, deleteBuyer);
 
 // Routes for financial transactions
-router.patch('/:id/deposit', protect, addDepositToBuyer);
-router.patch('/:id/withdrawal', protect, makeWithdrawalFromBuyer);
+router.patch('/:id/deposit', firebaseAuthMiddleware, addDepositToBuyer);
+router.patch('/:id/withdrawal', firebaseAuthMiddleware, makeWithdrawalFromBuyer);
 
 module.exports = router;

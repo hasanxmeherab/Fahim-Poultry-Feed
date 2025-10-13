@@ -10,25 +10,25 @@ const {
   deleteProduct,
 
 } = require('../controllers/productController');
-const { protect } = require('../middleware/authMiddleware');
+const { firebaseAuthMiddleware } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 
 
 router.route('/')
-    .get(protect , getProducts)
-    .post(protect , createProduct);
+    .get(firebaseAuthMiddleware , getProducts)
+    .post(firebaseAuthMiddleware , createProduct);
 
 //Check if sku exist
-router.get('/check-sku', protect, checkSkuExists);
+router.get('/check-sku', firebaseAuthMiddleware, checkSkuExists);
 
 router.route('/:id')
-    .get(protect, getProduct)
-    .patch(protect , updateProduct)
-    .delete(protect , deleteProduct);
+    .get(firebaseAuthMiddleware, getProduct)
+    .patch(firebaseAuthMiddleware , updateProduct)
+    .delete(firebaseAuthMiddleware , deleteProduct);
 
-router.patch('/:id/addstock', protect , addStock);
-router.patch('/:id/removestock', protect , removeStock);
+router.patch('/:id/addstock', firebaseAuthMiddleware , addStock);
+router.patch('/:id/removestock', firebaseAuthMiddleware , removeStock);
 
 module.exports = router;
