@@ -12,6 +12,7 @@ import {
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const modalStyle = {
     position: 'absolute',
@@ -38,6 +39,11 @@ const ProductListPage = () => {
     const [editFormData, setEditFormData] = useState({});
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // State for the new confirmation dialog
+    const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+    const [stockActionDetails, setStockActionDetails] = useState(null);
 
     useEffect(() => {
         setIsLoading(true);
@@ -82,18 +88,44 @@ const ProductListPage = () => {
           setFormError(`Cannot remove more than the available stock (${currentProduct.quantity}).`);
           return;
         }
-        const endpoint = isRemove ? 'removestock' : 'addstock';
-        const body = isRemove ? { removeQuantity: numQuantity } : { addQuantity: numQuantity };
-        try {
-          const response = await api.patch(`/products/${currentProduct._id}/${endpoint}`, body);
-          setProducts(products.map(p => p._id === currentProduct._id ? response.data : p));
-          showSuccessToast(`Stock ${isRemove ? 'removed' : 'added'} successfully!`);
-          closeModal();
-        } catch (err) {
-          showErrorToast(err, `Failed to process stock change.`);
+        
+        if (isRemove) {
+            setStockActionDetails({ product: currentProduct, quantity: numQuantity });
+            setOpenConfirmDialog(true);
+            closeModal();
+        } else {
+            const endpoint = 'addstock';
+            const body = { addQuantity: numQuantity };
+            try {
+              const response = await api.patch(`/products/${currentProduct._id}/${endpoint}`, body);
+              setProducts(products.map(p => p._id === currentProduct._id ? response.data : p));
+              showSuccessToast(`Stock added successfully!`);
+              closeModal();
+            } catch (err) {
+              showErrorToast(err, `Failed to process stock change.`);
+            }
         }
     };
 
+    const handleConfirmStockRemove = async () => {
+        if (!stockActionDetails) return;
+
+        const { product, quantity } = stockActionDetails;
+        const endpoint = 'removestock';
+        const body = { removeQuantity: quantity };
+
+        try {
+            const response = await api.patch(`/products/${product._id}/${endpoint}`, body);
+            setProducts(products.map(p => p._id === product._id ? response.data : p));
+            showSuccessToast(`Stock removed successfully!`);
+        } catch (err) {
+            showErrorToast(err, `Failed to remove stock.`);
+        } finally {
+            setOpenConfirmDialog(false);
+            setStockActionDetails(null);
+        }
+    };
+    
     const handleDeleteClick = (product) => {
         setProductToDelete(product);
         setOpenDeleteDialog(true);
@@ -101,6 +133,7 @@ const ProductListPage = () => {
 
     const handleConfirmDelete = async () => {
         if (!productToDelete) return;
+        setIsDeleting(true); 
         try {
             await api.delete(`/products/${productToDelete._id}`);
             setProducts(products.filter(p => p._id !== productToDelete._id));
@@ -110,35 +143,21 @@ const ProductListPage = () => {
         } finally {
             setOpenDeleteDialog(false);
             setProductToDelete(null);
+            setIsDeleting(false); 
         }
     };
 
     const handleEditClick = (product) => {
         setEditRowId(product._id);
-        setEditFormData({
-            name: product.name,        
-            sku: product.sku, 
-            price: product.price,
-            quantity: product.quantity
-        });
+        setEditFormData({ name: product.name, sku: product.sku, price: product.price, quantity: product.quantity });
     };
 
-    const handleCancelClick = () => {
-        setEditRowId(null);
-    };
-
-    const handleEditFormChange = (e) => {
-        const { name, value } = e.target;
-        setEditFormData({ ...editFormData, [name]: value });
-    };
-
+    const handleCancelClick = () => setEditRowId(null);
+    const handleEditFormChange = (e) => setEditFormData({ ...editFormData, [e.target.name]: e.target.value });
     const handleSaveClick = async (productId) => {
         try {
             const response = await api.patch(`/products/${productId}`, editFormData);
-            const updatedProducts = products.map((p) =>
-                p._id === productId ? response.data : p
-            );
-            setProducts(updatedProducts);
+            setProducts(products.map((p) => p._id === productId ? response.data : p));
             setEditRowId(null);
             showSuccessToast('Product updated successfully!');
         } catch (err) {
@@ -146,26 +165,17 @@ const ProductListPage = () => {
         }
     };
 
+
     return (
         <Box sx={{ padding: { xs: 1, sm: 2, md: 3 } }}>
+            {/* ... (Header, Search Bar, TableContainer, etc.) */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" component="h1">
-                    Inventory
-                </Typography>
-                <Button component={Link} to="/add-product" variant="contained" color="success" sx={{ whiteSpace: 'nowrap' }}>
-                    + Add New Product
-                </Button>
+                <Typography variant="h4" component="h1">Inventory</Typography>
+                <Button component={Link} to="/add-product" variant="contained" color="success"> + Add New Product</Button>
             </Box>
-            <TextField
-                fullWidth
-                label="Search by name or SKU..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{ mb: 3, backgroundColor: 'white' }}
-            />
-
+            <TextField fullWidth label="Search by name or SKU..." variant="outlined" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ mb: 3, backgroundColor: 'white' }}/>
             <TableContainer component={Paper}>
+                {/* ... (Table and TableHead) ... */}
                 <Table sx={{ tableLayout: 'fixed' }}>
                     <TableHead>
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
@@ -177,67 +187,39 @@ const ProductListPage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                    {isLoading ? (
-                        <TableSkeleton columns={5} />
-                    ) : products.length > 0 ? (
-                        products.map((product) => (
-                            <TableRow key={product._id} hover>
-                                <TableCell>
-                                    {editRowId === product._id ? (
-                                        <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                    ) : ( product.name )}
-                                </TableCell>
-                                <TableCell>
-                                    {editRowId === product._id ? (
-                                        <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                    ) : ( product.sku )}
-                                </TableCell>
-                                <TableCell>
-                                    {editRowId === product._id ? (
-                                        <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                    ) : ( product.price.toFixed(2) )}
-                                </TableCell>
-                                <TableCell>
-                                    {editRowId === product._id ? (
-                                        <TextField type="number" name="quantity" value={editFormData.quantity} onChange={handleEditFormChange} size="small" variant="standard" fullWidth disabled />
-                                    ) : ( product.quantity )}
-                                </TableCell>
-                                <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    {editRowId === product._id ? (
-                                        <>
-                                            <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success">Save</Button>
-                                            <Button onClick={handleCancelClick} variant="outlined" size="small">Cancel</Button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Button onClick={() => openModal(product, 'add')} variant="contained" size="small">Add Stock</Button>
-                                            <Button onClick={() => openModal(product, 'remove')} variant="outlined" size="small" color="warning">Remove</Button>
-                                            <Button onClick={() => handleEditClick(product)} variant="outlined" size="small" color="info">Edit</Button>
-                                            <Button onClick={() => handleDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
-                                        </>
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                                <Typography color="text.secondary">
-                                    No products found.
-                                </Typography>
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
+                        {isLoading ? ( <TableSkeleton columns={5} /> ) : (
+                            products.map((product) => (
+                                <TableRow key={product._id} hover>
+                                    <TableCell>{editRowId === product._id ? <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.name}</TableCell>
+                                    <TableCell>{editRowId === product._id ? <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.sku}</TableCell>
+                                    <TableCell>{editRowId === product._id ? <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.price.toFixed(2)}</TableCell>
+                                    <TableCell>{editRowId === product._id ? <TextField type="number" name="quantity" value={editFormData.quantity} onChange={handleEditFormChange} size="small" variant="standard" fullWidth disabled /> : product.quantity}</TableCell>
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {editRowId === product._id ? (
+                                            <>
+                                                <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success">Save</Button>
+                                                <Button onClick={handleCancelClick} variant="outlined" size="small">Cancel</Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button onClick={() => openModal(product, 'add')} variant="contained" size="small">Add Stock</Button>
+                                                <Button onClick={() => openModal(product, 'remove')} variant="outlined" size="small" color="warning">Remove</Button>
+                                                <Button onClick={() => handleEditClick(product)} variant="outlined" size="small" color="info">Edit</Button>
+                                                <Button onClick={() => handleDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
+                                            </>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
                 </Table>
             </TableContainer>
 
             <Modal open={modalIsOpen} onClose={closeModal} aria-labelledby="stock-modal-title" closeAfterTransition>
                 <Fade in={modalIsOpen}>
                     <Box sx={modalStyle}>
-                        <Typography id="stock-modal-title" variant="h6" component="h2">
-                            {modalType === 'add' ? 'Add Stock' : 'Remove Stock'} for {currentProduct?.name}
-                        </Typography>
+                        <Typography id="stock-modal-title" variant="h6" component="h2">{modalType === 'add' ? 'Add Stock' : 'Remove Stock'} for {currentProduct?.name}</Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
                             <TextField fullWidth autoFocus margin="dense" label="Quantity" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} error={!!formError} helperText={formError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
@@ -249,18 +231,26 @@ const ProductListPage = () => {
                 </Fade>
             </Modal>
 
-            <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-                <DialogTitle>{"Confirm Deletion"}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to delete the product "{productToDelete?.name}"? This action cannot be undone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-                    <Button onClick={handleConfirmDelete} color="error" autoFocus>Delete</Button>
-                </DialogActions>
-            </Dialog>
+            <ConfirmDialog
+                isOpen={openDeleteDialog}
+                title="Confirm Deletion"
+                message={`Are you sure you want to delete the product "${productToDelete?.name}"? This action cannot be undone.`}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setOpenDeleteDialog(false)}
+                confirmButtonText="Delete"
+                confirmColor="error"
+                isLoading={isDeleting} 
+            />
+
+            <ConfirmDialog
+                isOpen={openConfirmDialog}
+                title="Confirm Stock Removal"
+                message={`Are you sure you want to remove ${stockActionDetails?.quantity} unit(s) of ${stockActionDetails?.product?.name}? This action cannot be undone.`}
+                onConfirm={handleConfirmStockRemove}
+                onCancel={() => setOpenConfirmDialog(false)}
+                confirmButtonText="Yes, Remove"
+                confirmColor="warning"
+            />
         </Box>
     );
 };

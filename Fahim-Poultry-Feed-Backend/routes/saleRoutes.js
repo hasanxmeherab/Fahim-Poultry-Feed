@@ -1,19 +1,17 @@
 const express = require('express');
 const router = express.Router();
+const { createSale, getSales, createWholesaleSale } = require('../controllers/saleController');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-const {
-    createSale,
-    getSales,
-    createWholesaleSale
-} = require('../controllers/saleController');
-const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
+// Import the new validation rules
+const { createSaleRules, createWholesaleSaleRules, validate } = require('../validation/customer.validation.js');
 
-// Routes for the base /api/sales URL
+// Apply validation to the POST route for regular sales
 router.route('/')
-    .get(firebaseAuthMiddleware, getSales)      // Handles GET /api/sales
-    .post(firebaseAuthMiddleware, createSale);    // Handles POST /api/sales
+    .get(firebaseAuthMiddleware, getSales)
+    .post(firebaseAuthMiddleware, createSaleRules(), validate, createSale);
 
-// Route specifically for a new WHOLESALE sale
-router.post('/wholesale', firebaseAuthMiddleware, createWholesaleSale); // Handles POST /api/sales/wholesale
+// Apply validation to the POST route for wholesale sales
+router.post('/wholesale', firebaseAuthMiddleware, createWholesaleSaleRules(), validate, createWholesaleSale);
 
 module.exports = router;

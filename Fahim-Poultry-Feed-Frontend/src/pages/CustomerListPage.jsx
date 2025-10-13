@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
 
-// MUI Imports (add Dialog components)
+// MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, Modal, Fade, Dialog, DialogActions, 
-    DialogContent, DialogContentText, DialogTitle, CircularProgress
+    TableRow, Paper, Modal, Fade, CircularProgress
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx'; // <-- THE MISSING IMPORT IS NOW HERE
 
 const modalStyle = {
     position: 'absolute',
@@ -39,6 +39,7 @@ const CustomerListPage = () => {
     // State for the delete confirmation dialog
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         setIsLoading(true);
@@ -93,6 +94,7 @@ const CustomerListPage = () => {
 
     const handleConfirmDelete = async () => {
         if (!customerToDelete) return;
+        setIsDeleting(true);
         try {
             await api.delete(`/customers/${customerToDelete._id}`);
             setCustomers(customers.filter(c => c._id !== customerToDelete._id));
@@ -102,6 +104,7 @@ const CustomerListPage = () => {
         } finally {
             setOpenDeleteDialog(false);
             setCustomerToDelete(null);
+            setIsDeleting(false);
         }
     };
 
@@ -130,39 +133,36 @@ const CustomerListPage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                    {isLoading ? (
-                        <TableSkeleton columns={4} />
-                    ) : customers.length > 0 ? (
-                        customers.map((customer) => (
-                            <TableRow key={customer._id} hover>
-                                <TableCell>
-                                    <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                                        {customer.name}
-                                    </Typography>
-                                </TableCell>
-                                <TableCell>{customer.phone}</TableCell>
-                                <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
-                                    {customer.balance.toFixed(2)}
-                                </TableCell>
-                                <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                    <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
-                                    <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
-                                    <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                    <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
+                        {isLoading ? (
+                            <TableSkeleton columns={4} />
+                        ) : customers.length > 0 ? (
+                            customers.map((customer) => (
+                                <TableRow key={customer._id} hover>
+                                    <TableCell>
+                                        <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                            {customer.name}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>{customer.phone}</TableCell>
+                                    <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
+                                        {customer.balance.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
+                                        <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
+                                        <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                        <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                                    <Typography color="text.secondary">No customers found.</Typography>
                                 </TableCell>
                             </TableRow>
-                        ))
-                    ) : (
-                        <TableRow>
-                            <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                                <Typography color="text.secondary">
-                                    No customers found.
-                                </Typography>
-                            </TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-
+                        )}
+                    </TableBody>
                 </Table>
             </TableContainer>
 
@@ -175,7 +175,7 @@ const CustomerListPage = () => {
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
                             <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeModal}>Cancel</Button>
+                                <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
                                 <Button type="submit" variant="contained" disabled={isModalLoading}>
                                     {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
                                 </Button>
@@ -185,23 +185,16 @@ const CustomerListPage = () => {
                 </Fade>
             </Modal>
 
-            <Dialog
-                open={openDeleteDialog}
-                onClose={() => setOpenDeleteDialog(false)}
-            >
-                <DialogTitle>{"Confirm Deletion"}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to delete the customer "{customerToDelete?.name}"? This action cannot be undone.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
-                    <Button onClick={handleConfirmDelete} color="error" autoFocus>
-                        Delete
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <ConfirmDialog
+                isOpen={openDeleteDialog}
+                title="Confirm Deletion"
+                message={`Are you sure you want to delete the customer "${customerToDelete?.name}"? This action cannot be undone.`}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setOpenDeleteDialog(false)}
+                confirmButtonText="Delete"
+                confirmColor="error"
+                isLoading={isDeleting}
+            />
         </Box>
     );
 };

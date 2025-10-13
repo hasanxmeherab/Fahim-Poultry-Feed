@@ -10,17 +10,6 @@ const WholesaleBuyer = require('../models/wholesaleBuyerModel');
 // @route  POST /api/sales
 const createSale = async (req, res, next) => {
     const { customerId, items, isCashPayment, isRandomCustomer, randomCustomerName } = req.body;
-    if (!items || items.length === 0) {
-        return res.status(400).json({ error: 'At least one item is required.' });
-    }
-
-    if (!isRandomCustomer && !customerId) {
-        return res.status(400).json({ error: 'Customer ID is required for non-random sales.' });
-    }
-    
-    if (isRandomCustomer && !isCashPayment) {
-        return res.status(400).json({ error: 'Random customer sales must be paid in cash.' });
-    }
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -107,10 +96,6 @@ const createSale = async (req, res, next) => {
 // @route  POST /api/sales/wholesale
 const createWholesaleSale = async (req, res, next) => {
     const { wholesaleBuyerId, items, isCashPayment } = req.body;
-
-    if (!wholesaleBuyerId || !items || items.length === 0) {
-        return res.status(400).json({ message: 'Buyer ID and items are required.' });
-    }
 
     const session = await mongoose.startSession();
     session.startTransaction();

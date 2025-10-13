@@ -5,10 +5,21 @@ import {
     DialogActions, 
     DialogContent, 
     DialogContentText, 
-    DialogTitle 
+    DialogTitle,
+    CircularProgress // Import CircularProgress
 } from '@mui/material';
 
-const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmButtonText = 'Confirm', confirmColor = 'primary' }) => {
+// Add a new 'isLoading' prop
+const ConfirmDialog = ({ 
+    isOpen, 
+    title, 
+    message, 
+    onConfirm, 
+    onCancel, 
+    confirmButtonText = 'Confirm', 
+    confirmColor = 'primary',
+    isLoading = false // Default to false
+}) => {
     return (
         <Dialog
             open={isOpen}
@@ -25,7 +36,8 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmBut
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={onCancel} variant="outlined">
+                {/* Disable the cancel button while the action is in progress */}
+                <Button onClick={onCancel} variant="outlined" disabled={isLoading}>
                     Cancel
                 </Button>
                 <Button 
@@ -33,8 +45,10 @@ const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmBut
                     variant="contained" 
                     color={confirmColor} 
                     autoFocus
+                    disabled={isLoading} // Disable the confirm button while loading
                 >
-                    {confirmButtonText}
+                    {/* Show a spinner when loading, otherwise show the text */}
+                    {isLoading ? <CircularProgress size={24} color="inherit" /> : confirmButtonText}
                 </Button>
             </DialogActions>
         </Dialog>
