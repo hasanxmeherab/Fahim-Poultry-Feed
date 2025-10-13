@@ -4,30 +4,50 @@ import { useNavigate } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 
 // MUI Imports
-import { Box, Button, TextField, Typography, Paper } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
 
 const AddWholesaleBuyerPage = () => {
-  // All state and logic functions are preserved
   const [formData, setFormData] = useState({ name: '', businessName: '', phone: '', address: '' });
-  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name === 'phone') {
+        // This regex replaces any non-digit character with an empty string
+        const numericValue = value.replace(/[^0-9]/g, '');
+        setFormData({ ...formData, [name]: numericValue });
+    } else {
+        setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setFormErrors({});
+    
     try {
       await api.post('/wholesale-buyers', formData);
-       showSuccessToast('Wholesale buyer added successfully!');
+      showSuccessToast('Wholesale buyer added successfully!');
       navigate('/wholesale');
-
     } catch (err) {
-      showErrorToast(err, 'Failed to add buyer.');
+      if (err.response && err.response.status === 400 && err.response.data.errors) {
+        const errorData = err.response.data.errors.reduce((acc, current) => {
+          const fieldName = Object.keys(current)[0];
+          acc[fieldName] = current[fieldName];
+          return acc;
+        }, {});
+        setFormErrors(errorData);
+      } else {
+        showErrorToast(err, 'Failed to add buyer.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
-  // End of preserved logic
 
   return (
     <Box sx={{ maxWidth: '600px', margin: 'auto', p: 3 }}>
@@ -44,6 +64,8 @@ const AddWholesaleBuyerPage = () => {
                 onChange={handleChange}
                 required
                 sx={{ mb: 2 }}
+                error={!!formErrors.name}
+                helperText={formErrors.name || ''}
             />
             
             <TextField
@@ -63,6 +85,12 @@ const AddWholesaleBuyerPage = () => {
                 onChange={handleChange}
                 required
                 sx={{ mb: 2 }}
+                error={!!formErrors.phone}
+                helperText={formErrors.phone || ''}
+                inputProps={{
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*'
+                }}
             />
 
             <TextField
@@ -74,10 +102,8 @@ const AddWholesaleBuyerPage = () => {
                 sx={{ mb: 2 }}
             />
             
-            {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
-            
-            <Button type="submit" variant="contained" fullWidth>
-                Save Buyer
+            <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save Buyer'}
             </Button>
         </Paper>
     </Box>

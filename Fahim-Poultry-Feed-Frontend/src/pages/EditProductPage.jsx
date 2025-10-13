@@ -11,6 +11,8 @@ const EditProductPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ name: '', sku: '', price: '' });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -31,17 +33,27 @@ const EditProductPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+      e.preventDefault();
+      setIsSubmitting(true);
+      setFormErrors({});
+
     try {
       await api.patch(`/products/${id}`, formData);
       showSuccessToast('Product updated successfully!');
-      
-      setTimeout(() => {
-        navigate('/inventory');
-      }, 1000); // 1-second delay for toast visibility
-
+      navigate('/inventory');
     } catch (err) {
-      showErrorToast(err, 'Failed to update product.');
+      if (err.response && err.response.status === 400 && err.response.data.errors) {
+        const errorData = err.response.data.errors.reduce((acc, current) => {
+          const fieldName = Object.keys(current)[0];
+          acc[fieldName] = current[fieldName];
+          return acc;
+        }, {});
+        setFormErrors(errorData);
+      } else {
+        showErrorToast(err, 'Failed to update product.');
+      }
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -64,6 +76,8 @@ const EditProductPage = () => {
                 onChange={handleChange}
                 required
                 sx={{ mb: 2 }}
+                error={!!formErrors.name}
+                helperText={formErrors.name || ''}
             />
             
             <TextField
@@ -74,6 +88,8 @@ const EditProductPage = () => {
                 onChange={handleChange}
                 required
                 sx={{ mb: 2 }}
+                error={!!formErrors.sku}
+                helperText={formErrors.sku || ''}
             />
 
             <TextField
@@ -85,10 +101,12 @@ const EditProductPage = () => {
                 onChange={handleChange}
                 required
                 sx={{ mb: 2 }}
+                error={!!formErrors.price}
+                helperText={formErrors.price || ''}
             />
             
-            <Button type="submit" variant="contained" fullWidth>
-                Save Changes
+            <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
             </Button>
         </Paper>
     </Box>

@@ -11,7 +11,7 @@ const {
 } = require('../controllers/customerController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-const { createCustomerRules, validate } = require('../validation/customer.validation.js');
+const { createCustomerRules, updateCustomerRules, validate } = require('../validation/customer.validation.js');
 
 const router = express.Router();
 
@@ -32,7 +32,7 @@ router.patch('/:id/withdrawal', firebaseAuthMiddleware, makeWithdrawal);
 router.delete('/:id', firebaseAuthMiddleware, deleteCustomer);
 
 // Update Customer
-router.patch('/:id', firebaseAuthMiddleware, updateCustomer);
+router.patch('/:id', firebaseAuthMiddleware, updateCustomerRules(), validate, updateCustomer);
 
 router.get('/:id', firebaseAuthMiddleware, getCustomer);
 

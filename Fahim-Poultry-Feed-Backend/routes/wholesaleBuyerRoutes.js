@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const  firebaseAuthMiddleware  = require('../middleware/firebaseAuthMiddleware');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
 // Import all the functions from the controller
 const {
@@ -13,15 +13,18 @@ const {
      makeWithdrawalFromBuyer
 } = require('../controllers/wholesaleBuyerController');
 
+const { createWholesaleBuyerRules, updateWholesaleBuyerRules, validate } = require('../validation/customer.validation.js');
+
 // Routes for the base URL (/api/wholesale-buyers)
 router.route('/')
      .get(firebaseAuthMiddleware, getBuyers)
-     .post(firebaseAuthMiddleware, createBuyer);
+     // THIS IS THE CORRECTED LINE:
+     .post(firebaseAuthMiddleware, createWholesaleBuyerRules(), validate, createBuyer);
 
 // Routes for a specific buyer by ID (/api/wholesale-buyers/:id)
 router.route('/:id')
      .get(firebaseAuthMiddleware, getBuyerById)
-     .patch(firebaseAuthMiddleware, updateBuyer)
+     .patch(firebaseAuthMiddleware, updateWholesaleBuyerRules(), validate, updateBuyer)
      .delete(firebaseAuthMiddleware, deleteBuyer);
 
 // Routes for financial transactions

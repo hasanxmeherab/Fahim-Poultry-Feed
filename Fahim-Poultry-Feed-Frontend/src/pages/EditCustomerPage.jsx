@@ -9,16 +9,15 @@ import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mu
 const EditCustomerPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    // Updated initial state to include all fields
     const [formData, setFormData] = useState({ name: '', phone: '', email: '', address: '' });
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false); // For button loading state
+    const [formErrors, setFormErrors] = useState({}); // State for inline errors
 
     useEffect(() => {
         const fetchCustomer = async () => {
             try {
                 const response = await api.get(`/customers/${id}`);
-                // Ensure all fields are populated, even if they are null in the DB
                 setFormData({
                     name: response.data.name || '',
                     phone: response.data.phone || '',
@@ -26,7 +25,7 @@ const EditCustomerPage = () => {
                     address: response.data.address || ''
                 });
             } catch (err) {
-                setError('Failed to fetch customer data.');
+                showErrorToast(err, 'Failed to fetch customer data.');
             } finally {
                 setIsLoading(false);
             }
@@ -34,10 +33,8 @@ const EditCustomerPage = () => {
         fetchCustomer();
     }, [id]);
 
-
     const handleChange = (e) => {
         const { name, value } = e.target;
-
         if (name === 'phone') {
             const numericValue = value.replace(/[^0-9]/g, '');
             setFormData({ ...formData, [name]: numericValue });
@@ -48,16 +45,26 @@ const EditCustomerPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setFormErrors({});
+
         try {
             await api.patch(`/customers/${id}`, formData);
             showSuccessToast('Customer updated successfully!');
-
-            setTimeout(() => {
             navigate('/customers');
-        }, 1000);
-
         } catch (err) {
-             showErrorToast(err, 'Failed to update customer.');
+            if (err.response && err.response.status === 400 && err.response.data.errors) {
+                const errorData = err.response.data.errors.reduce((acc, current) => {
+                    const fieldName = Object.keys(current)[0];
+                    acc[fieldName] = current[fieldName];
+                    return acc;
+                }, {});
+                setFormErrors(errorData);
+            } else {
+                showErrorToast(err, 'Failed to update customer.');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -72,16 +79,36 @@ const EditCustomerPage = () => {
                     Edit Customer
                 </Typography>
                 
-                <TextField fullWidth label="Name" name="name" value={formData.name} onChange={handleChange} required sx={{ mb: 2 }} />
-                <TextField fullWidth label="Phone" name="phone" value={formData.phone} onChange={handleChange} required sx={{ mb: 2 }} inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}/>
+                <TextField 
+                    fullWidth 
+                    label="Name" 
+                    name="name" 
+                    value={formData.name} 
+                    onChange={handleChange} 
+                    required 
+                    sx={{ mb: 2 }}
+                    error={!!formErrors.name}
+                    helperText={formErrors.name || ''}
+                />
+                
+                <TextField 
+                    fullWidth 
+                    label="Phone" 
+                    name="phone" 
+                    value={formData.phone} 
+                    onChange={handleChange} 
+                    required 
+                    sx={{ mb: 2 }}
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                    error={!!formErrors.phone}
+                    helperText={formErrors.phone || ''}
+                />
 
                 <TextField fullWidth label="Email (Optional)" name="email" type="email" value={formData.email} onChange={handleChange} sx={{ mb: 2 }} />
                 <TextField fullWidth label="Address (Optional)" name="address" value={formData.address} onChange={handleChange} sx={{ mb: 2 }} />
                 
-                {error && <Typography color="error" sx={{ my: 2 }}>{error}</Typography>}
-                
-                <Button type="submit" variant="contained" fullWidth>
-                    Save Changes
+                <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+                    {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
                 </Button>
             </Paper>
         </Box>

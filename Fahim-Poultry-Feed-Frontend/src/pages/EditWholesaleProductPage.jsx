@@ -11,7 +11,8 @@ const EditWholesaleProductPage = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formErrors, setFormErrors] = useState({});
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -19,7 +20,7 @@ const EditWholesaleProductPage = () => {
                 const response = await api.get(`/wholesale-products/${id}`);
                 setName(response.data.name);
             } catch (err) {
-                setError('Failed to fetch product data.');
+                showErrorToast(err, 'Failed to fetch product data.');
             } finally {
                 setIsLoading(false);
             }
@@ -29,14 +30,26 @@ const EditWholesaleProductPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setFormErrors({});
+
         try {
             await api.patch(`/wholesale-products/${id}`, { name });
             showSuccessToast('Wholesale product updated successfully!');
-            setTimeout(() => {
-                navigate('/wholesale');
-                }, 1000);
+            navigate('/wholesale');
         } catch (err) {
-            showErrorToast(err, 'Failed to update product.');
+            if (err.response && err.response.status === 400 && err.response.data.errors) {
+                const errorData = err.response.data.errors.reduce((acc, current) => {
+                    const fieldName = Object.keys(current)[0];
+                    acc[fieldName] = current[fieldName];
+                    return acc;
+                }, {});
+                setFormErrors(errorData);
+            } else {
+                showErrorToast(err, 'Failed to update product.');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -60,12 +73,12 @@ const EditWholesaleProductPage = () => {
                     onChange={(e) => setName(e.target.value)}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.name}
+                    helperText={formErrors.name || ''}
                 />
                 
-                {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
-                
-                <Button type="submit" variant="contained" fullWidth>
-                    Save Changes
+                <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+                    {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
                 </Button>
             </Paper>
         </Box>

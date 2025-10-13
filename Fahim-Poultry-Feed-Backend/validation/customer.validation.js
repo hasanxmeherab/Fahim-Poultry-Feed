@@ -24,6 +24,47 @@ const stockUpdateRules = () => {
   ];
 };
 
+const updateCustomerRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Customer name cannot be empty.'),
+    body('phone').trim().notEmpty().withMessage('Phone number cannot be empty.'),
+  ];
+};
+
+const updateProductRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Product name cannot be empty.'),
+    body('sku').trim().notEmpty().withMessage('SKU cannot be empty.'),
+    body('price').isFloat({ gt: 0 }).withMessage('Price must be a number greater than 0.'),
+  ];
+};
+
+const updateWholesaleBuyerRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Contact name cannot be empty.'),
+    body('phone').trim().notEmpty().withMessage('Phone number cannot be empty.'),
+  ];
+};
+
+const createWholesaleBuyerRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Contact name is required.'),
+    body('phone').trim().notEmpty().withMessage('Phone number is required.'),
+  ];
+};
+
+const createWholesaleProductRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Product name is required.'),
+  ];
+};
+
+const updateWholesaleProductRules = () => {
+  return [
+    body('name').trim().notEmpty().withMessage('Product name cannot be empty.'),
+  ];
+};
+
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) {
@@ -40,6 +81,12 @@ const validate = (req, res, next) => {
 module.exports = {
   createCustomerRules,
   createProductRules,
-  stockUpdateRules, // <-- Export the new rules
+  stockUpdateRules,
+  updateCustomerRules,
+  updateProductRules,
+  updateWholesaleBuyerRules,
+  createWholesaleBuyerRules,
+  createWholesaleProductRules,
+  updateWholesaleProductRules,
   validate,
 };

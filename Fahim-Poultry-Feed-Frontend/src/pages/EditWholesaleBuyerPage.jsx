@@ -7,10 +7,10 @@ import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import { Box, Button, TextField, Typography, Paper, CircularProgress } from '@mui/material';
 
 const EditWholesaleBuyerPage = () => {
-    // --- All existing state and logic is preserved ---
     const [formData, setFormData] = useState({ name: '', businessName: '', phone: '', address: '' });
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [isLoading, setIsLoading] = useState(true); 
+    const [isSubmitting, setIsSubmitting] = useState(false); 
+    const [formErrors, setFormErrors] = useState({});
     const navigate = useNavigate();
     const { id } = useParams();
 
@@ -19,37 +19,52 @@ const EditWholesaleBuyerPage = () => {
             try {
                 const { data } = await api.get(`/wholesale-buyers/${id}`);
                 setFormData(data);
-                setIsLoading(false);
             } catch (err) {
-                setError('Failed to fetch buyer data.');
+                showErrorToast(err, 'Failed to fetch buyer data.');
+            } finally {
                 setIsLoading(false);
             }
         };
         fetchBuyer();
     }, [id]);
 
-    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleChange = (e) => {
+        const { name, value } = e.target;
 
+        if (name === 'phone') {
+            const numericValue = value.replace(/[^0-9]/g, '');
+            setFormData({ ...formData, [name]: numericValue });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
+    };
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
+        setFormErrors({});
+
         try {
             await api.patch(`/wholesale-buyers/${id}`, formData);
             showSuccessToast('Wholesale buyer updated successfully!');
-            setTimeout(() => {
-                navigate('/wholesale');
-                }, 1000);
+            navigate('/wholesale');
         } catch (err) {
-            showErrorToast(err, 'Failed to update buyer.');
+            if (err.response && err.response.status === 400 && err.response.data.errors) {
+                const errorData = err.response.data.errors.reduce((acc, current) => {
+                    const fieldName = Object.keys(current)[0];
+                    acc[fieldName] = current[fieldName];
+                    return acc;
+                }, {});
+                setFormErrors(errorData);
+            } else {
+                showErrorToast(err, 'Failed to update buyer.');
+            }
+        } finally {
+            setIsSubmitting(false);
         }
     };
-    // --- End of preserved logic ---
 
     if (isLoading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
-    }
-
-    if (error) {
-        return <Typography color="error" sx={{ mt: 4 }}>{error}</Typography>;
     }
 
     return (
@@ -67,6 +82,8 @@ const EditWholesaleBuyerPage = () => {
                     onChange={handleChange}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.name}
+                    helperText={formErrors.name || ''}
                 />
                 
                 <TextField
@@ -86,6 +103,12 @@ const EditWholesaleBuyerPage = () => {
                     onChange={handleChange}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.phone}
+                    helperText={formErrors.phone || ''}
+                    inputProps={{
+                        inputMode: 'numeric',
+                        pattern: '[0-9]*'
+                    }}
                 />
 
                 <TextField
@@ -97,10 +120,8 @@ const EditWholesaleBuyerPage = () => {
                     sx={{ mb: 2 }}
                 />
                 
-                {error && <Typography color="error" sx={{ my: 2 }}>{error}</Typography>}
-                
-                <Button type="submit" variant="contained" fullWidth>
-                    Save Changes
+                <Button type="submit" variant="contained" fullWidth disabled={isSubmitting}>
+                    {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
                 </Button>
             </Paper>
         </Box>

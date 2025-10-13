@@ -11,6 +11,7 @@ const AddProductPage = () => {
     const [submitError, setSubmitError] = useState(null);
     const [skuError, setSkuError] = useState(''); // State for real-time SKU validation
     const [isLoading, setIsLoading] = useState(false);
+    const [formErrors, setFormErrors] = useState({});
     const navigate = useNavigate();
 
     // This 'useEffect' hook watches for changes to the SKU input field
@@ -56,12 +57,22 @@ const AddProductPage = () => {
             return;
         }
         setIsLoading(true);
+        setFormErrors({});
         try {
             await api.post('/products', formData);
             showSuccessToast('Product added successfully!');
             navigate('/inventory');
         } catch (err) {
-            showErrorToast(err, 'Failed to add product.');
+            if (err.response && err.response.status === 400 && err.response.data.errors) {
+                const errorData = err.response.data.errors.reduce((acc, current) => {
+                    const fieldName = Object.keys(current)[0];
+                    acc[fieldName] = current[fieldName];
+                    return acc;
+                }, {});
+                setFormErrors(errorData);
+            } else {
+                showErrorToast(err, 'Failed to add product.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -69,8 +80,7 @@ const AddProductPage = () => {
 
     return (
         <Box sx={{ maxWidth: '600px', margin: 'auto', p: 3 }}>
-            <Paper component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
-                <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+                <Paper component="form" onSubmit={handleSubmit} noValidate sx={{ p: 3 }}>                   <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
                     Add New Product
                 </Typography>
                 
@@ -82,6 +92,8 @@ const AddProductPage = () => {
                     onChange={handleChange}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.name}
+                    helperText={formErrors.name || ''}
                 />
                 
                 <TextField
@@ -91,8 +103,8 @@ const AddProductPage = () => {
                     value={formData.sku}
                     onChange={handleChange}
                     required
-                    error={!!skuError} // The input field will turn red if there's a skuError
-                    helperText={skuError} // This displays the error message below the input
+                    error={!!skuError || !!formErrors.sku}
+                    helperText={skuError || formErrors.sku || ''}
                     sx={{ mb: 2 }}
                 />
 
@@ -105,6 +117,8 @@ const AddProductPage = () => {
                     onChange={handleChange}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.price}
+                    helperText={formErrors.price || ''}
                 />
 
                 <TextField
@@ -116,9 +130,9 @@ const AddProductPage = () => {
                     onChange={handleChange}
                     required
                     sx={{ mb: 2 }}
+                    error={!!formErrors.quantity}
+                    helperText={formErrors.quantity || ''}
                 />
-                
-                {submitError && <Typography color="error" sx={{ mb: 2 }}>{submitError}</Typography>}
                 
                 <Button type="submit" variant="contained" disabled={isLoading || !!skuError} fullWidth>
                     {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Save Product'}
