@@ -13,7 +13,6 @@ const batchRoutes = require('./routes/batchRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const productRoutes = require('./routes/productRoutes');
 const saleRoutes = require('./routes/saleRoutes');
-//const userRoutes = require('./routes/userRoutes');
 const wholesaleBuyerRoutes = require('./routes/wholesaleBuyerRoutes');
 const wholesaleProductRoutes = require('./routes/wholesaleProductRoutes');
 
@@ -39,7 +38,6 @@ app.use('/api/customers', customerRoutes); // Use the customer routes for any UR
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/transactions', transactionRoutes);
-//app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/wholesale-buyers', wholesaleBuyerRoutes);
 app.use('/api/wholesale-products', wholesaleProductRoutes);
