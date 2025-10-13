@@ -32,4 +32,5 @@ const validate = (req, res, next) => {
 module.exports = {
   createCustomerRules,
   createProductRules,
+  validate,
 };
