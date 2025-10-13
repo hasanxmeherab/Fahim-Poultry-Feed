@@ -58,9 +58,7 @@ const AddProductPage = () => {
         try {
             await api.post('/products', formData);
             showSuccessToast('Product added successfully!');
-           setTimeout(() => {
             navigate('/inventory');
-        }, 1000);
         } catch (err) {
             showErrorToast(err, 'Failed to add product.');
         }

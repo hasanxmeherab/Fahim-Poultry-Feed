@@ -177,50 +177,58 @@ const ProductListPage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? (
-                            <TableSkeleton columns={5} />
-                        ) : (
-                            products.map((product) => (
-                                <TableRow key={product._id} hover>
-                                    <TableCell>
-                                        {editRowId === product._id ? (
-                                            <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                        ) : ( product.name )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {editRowId === product._id ? (
-                                            <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                        ) : ( product.sku )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {editRowId === product._id ? (
-                                            <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
-                                        ) : ( product.price.toFixed(2) )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {editRowId === product._id ? (
-                                            <TextField type="number" name="quantity" value={editFormData.quantity} onChange={handleEditFormChange} size="small" variant="standard" fullWidth disabled />
-                                        ) : ( product.quantity )}
-                                    </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        {editRowId === product._id ? (
-                                            <>
-                                                <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success">Save</Button>
-                                                <Button onClick={handleCancelClick} variant="outlined" size="small">Cancel</Button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Button onClick={() => openModal(product, 'add')} variant="contained" size="small">Add Stock</Button>
-                                                <Button onClick={() => openModal(product, 'remove')} variant="outlined" size="small" color="warning">Remove</Button>
-                                                <Button onClick={() => handleEditClick(product)} variant="outlined" size="small" color="info">Edit</Button>
-                                                <Button onClick={() => handleDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
-                                            </>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
+                    {isLoading ? (
+                        <TableSkeleton columns={5} />
+                    ) : products.length > 0 ? (
+                        products.map((product) => (
+                            <TableRow key={product._id} hover>
+                                <TableCell>
+                                    {editRowId === product._id ? (
+                                        <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
+                                    ) : ( product.name )}
+                                </TableCell>
+                                <TableCell>
+                                    {editRowId === product._id ? (
+                                        <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
+                                    ) : ( product.sku )}
+                                </TableCell>
+                                <TableCell>
+                                    {editRowId === product._id ? (
+                                        <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth />
+                                    ) : ( product.price.toFixed(2) )}
+                                </TableCell>
+                                <TableCell>
+                                    {editRowId === product._id ? (
+                                        <TextField type="number" name="quantity" value={editFormData.quantity} onChange={handleEditFormChange} size="small" variant="standard" fullWidth disabled />
+                                    ) : ( product.quantity )}
+                                </TableCell>
+                                <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    {editRowId === product._id ? (
+                                        <>
+                                            <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success">Save</Button>
+                                            <Button onClick={handleCancelClick} variant="outlined" size="small">Cancel</Button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Button onClick={() => openModal(product, 'add')} variant="contained" size="small">Add Stock</Button>
+                                            <Button onClick={() => openModal(product, 'remove')} variant="outlined" size="small" color="warning">Remove</Button>
+                                            <Button onClick={() => handleEditClick(product)} variant="outlined" size="small" color="info">Edit</Button>
+                                            <Button onClick={() => handleDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
+                                        </>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                                <Typography color="text.secondary">
+                                    No products found.
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
                 </Table>
             </TableContainer>
 

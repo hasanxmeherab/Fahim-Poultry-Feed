@@ -96,7 +96,7 @@ const addDeposit = async (req, res, next) => {
         amount: amount,
         balanceBefore: balanceBefore,
         balanceAfter: customer.balance,
-        notes: `Deposit of $${amount.toFixed(2)} for ${customer.name}`
+        notes: `Deposit of ${amount.toFixed(2)} for ${customer.name}`
     }], { session });
 
     const updatedCustomer = await customer.save({ session });
@@ -148,7 +148,7 @@ const makeWithdrawal = async (req, res, next) => {
             amount: -amount,
             balanceBefore: balanceBefore,
             balanceAfter: customer.balance,
-            notes: `Withdrawal of $${amount.toFixed(2)} by ${customer.name}`
+            notes: `Withdrawal of ${amount.toFixed(2)} by ${customer.name}`
         }], { session });
 
         const updatedCustomer = await customer.save({ session });

@@ -21,9 +21,8 @@ const AddWholesaleBuyerPage = () => {
     try {
       await api.post('/wholesale-buyers', formData);
        showSuccessToast('Wholesale buyer added successfully!');
-      setTimeout(() => {
       navigate('/wholesale');
-    }, 1000);
+
     } catch (err) {
       showErrorToast(err, 'Failed to add buyer.');
     }

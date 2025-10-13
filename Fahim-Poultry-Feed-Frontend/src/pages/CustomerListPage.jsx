@@ -44,7 +44,10 @@ const CustomerListPage = () => {
         const timerId = setTimeout(() => {
           api.get(`/customers?search=${searchTerm}`)
             .then(response => setCustomers(response.data))
-            .catch(err => showErrorToast(err, 'Failed to fetch customers.'))
+            .catch(err => {
+                showErrorToast(err, 'Failed to fetch customers.');
+                setCustomers([]);
+            })
             .finally(() => setIsLoading(false));
         }, 500);
         return () => clearTimeout(timerId);
@@ -123,32 +126,39 @@ const CustomerListPage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? (
-                            <TableSkeleton columns={4} />
-                        ) : (
-                            // --- THIS BLOCK IS CORRECTED ---
-                            // The extra curly braces around the map function have been removed.
-                            customers.map((customer) => (
-                                <TableRow key={customer._id} hover>
-                                    <TableCell>
-                                        <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                                            {customer.name}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>{customer.phone}</TableCell>
-                                    <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
-                                        {customer.balance.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
-                                        <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
-                                        <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                        <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
+                    {isLoading ? (
+                        <TableSkeleton columns={4} />
+                    ) : customers.length > 0 ? (
+                        customers.map((customer) => (
+                            <TableRow key={customer._id} hover>
+                                <TableCell>
+                                    <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                        {customer.name}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>{customer.phone}</TableCell>
+                                <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
+                                    {customer.balance.toFixed(2)}
+                                </TableCell>
+                                <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
+                                    <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
+                                    <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                                <Typography color="text.secondary">
+                                    No customers found.
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+
                 </Table>
             </TableContainer>
 

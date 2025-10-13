@@ -40,6 +40,9 @@ const getTransactionsByBatch = async (req, res, next) => {
         const limit = 15;
         const page = Number(req.query.page) || 1;
         const batchId = req.params.batchId;
+        if (!mongoose.Types.ObjectId.isValid(batchId)) {
+            return res.status(404).json({ message: 'Invalid Batch ID' });
+        }
         const filter = { batch: new mongoose.Types.ObjectId(batchId) };
         
         if (req.query.date) {
@@ -90,6 +93,10 @@ const getTransactionsForBuyer = async (req, res, next) => {
         const limit = 15;
         const page = Number(req.query.page) || 1;
         const buyerId = req.params.buyerId;
+
+        if (!mongoose.Types.ObjectId.isValid(buyerId)) {
+            return res.status(404).json({ message: 'Invalid Buyer ID' });
+        }
         
         const filter = { wholesaleBuyer: new mongoose.Types.ObjectId(buyerId) };
         if (req.query.date) {

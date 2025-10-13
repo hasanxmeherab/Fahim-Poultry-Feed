@@ -155,31 +155,39 @@ const WholesalePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? (
-                            <TableSkeleton columns={5} />
-                        ) : (
-                            buyers.map((buyer) => (
-                                <TableRow key={buyer._id} hover>
-                                    <TableCell>
-                                        <Typography component={Link} to={`/wholesale-buyers/${buyer._id}`} sx={{ fontWeight: 'bold', color: '#2C3E50', textDecoration: 'none' }}>
-                                            {buyer.name}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>{buyer.businessName}</TableCell>
-                                    <TableCell>{buyer.phone}</TableCell>
-                                    <TableCell sx={{ color: buyer.balance < 0 ? 'error.main' : 'inherit' }}>
-                                        {buyer.balance.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        <Button onClick={() => openModal(buyer, 'deposit')} variant="contained" size="small">Deposit</Button>
-                                        <Button onClick={() => openModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
-                                        <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                        <Button onClick={() => handleBuyerDeleteClick(buyer)} variant="outlined" size="small" color="error">Delete</Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
+                    {isLoading ? (
+                        <TableSkeleton columns={5} />
+                    ) : buyers.length > 0 ? (
+                        buyers.map((buyer) => (
+                            <TableRow key={buyer._id} hover>
+                                <TableCell>
+                                    <Typography component={Link} to={`/wholesale-buyers/${buyer._id}`} sx={{ fontWeight: 'bold', color: '#2C3E50', textDecoration: 'none' }}>
+                                        {buyer.name}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>{buyer.businessName}</TableCell>
+                                <TableCell>{buyer.phone}</TableCell>
+                                <TableCell sx={{ color: buyer.balance < 0 ? 'error.main' : 'inherit' }}>
+                                    {buyer.balance.toFixed(2)}
+                                </TableCell>
+                                <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    <Button onClick={() => openModal(buyer, 'deposit')} variant="contained" size="small">Deposit</Button>
+                                    <Button onClick={() => openModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
+                                    <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <Button onClick={() => handleBuyerDeleteClick(buyer)} variant="outlined" size="small" color="error">Delete</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                                <Typography color="text.secondary">
+                                    No wholesale buyers found.
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
                 </Table>
             </TableContainer>
 
@@ -199,20 +207,28 @@ const WholesalePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? (
-                            <TableSkeleton columns={2} />
-                        ) : (
-                            products.map((product) => (
-                                <TableRow key={product._id} hover>
-                                    <TableCell>{product.name}</TableCell>
-                                    <TableCell sx={{ display: 'flex', gap: 1 }}>
-                                        <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
-                                        <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
+                    {isLoading ? (
+                        <TableSkeleton columns={2} />
+                    ) : products.length > 0 ? (
+                        products.map((product) => (
+                            <TableRow key={product._id} hover>
+                                <TableCell>{product.name}</TableCell>
+                                <TableCell sx={{ display: 'flex', gap: 1 }}>
+                                    <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
+                                <Typography color="text.secondary">
+                                    No wholesale products found.
+                                </Typography>
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
                 </Table>
             </TableContainer>
 

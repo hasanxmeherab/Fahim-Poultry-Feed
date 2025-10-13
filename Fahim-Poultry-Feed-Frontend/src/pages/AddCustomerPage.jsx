@@ -23,12 +23,8 @@ const AddCustomerPage = () => {
       
       // 1. Show the success message
       showSuccessToast('Customer added successfully!');
-      
-      // 2. Wait 1 second before navigating to allow the toast to be seen
-      setTimeout(() => {
         navigate('/customers');
-      }, 1000); 
-
+    
     } catch (err) {
       showErrorToast(err, 'Failed to add customer.');
     }

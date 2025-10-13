@@ -16,9 +16,8 @@ const AddWholesaleProductPage = () => {
         try {
             await api.post('/wholesale-products', { name });
             showSuccessToast('Wholesale product added successfully!');
-            setTimeout(() => {
                 navigate('/wholesale');
-                }, 1000);
+                
         } catch (err) {
             showErrorToast(err, 'Failed to add product.');
         }
