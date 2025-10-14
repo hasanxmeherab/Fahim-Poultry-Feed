@@ -34,24 +34,37 @@ const DashboardPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchAllData = async () => {
-            try {
-                const [statsRes, chartsRes] = await Promise.all([
-                    api.get('/dashboard/stats'),
-                    api.get('/reports/dashboard-charts')
-                ]);
-                setStats(statsRes.data);
-                setChartData(chartsRes.data);
-            } catch (err) {
-                setError('Failed to fetch dashboard data.');
-                console.error(err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchAllData();
-    }, []);
+        useEffect(() => {
+            const fetchAllData = async () => {
+                try {
+                    // --- Calculate "today" in the user's local timezone ---
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+
+                    const todayEnd = new Date();
+                    todayEnd.setHours(23, 59, 59, 999);
+                    
+                    // Convert to ISO strings, which preserves timezone info for the backend
+                    const startDateISO = todayStart.toISOString();
+                    const endDateISO = todayEnd.toISOString();
+
+                    // --- Make API calls with the new date parameters ---
+                    const [statsRes, chartsRes] = await Promise.all([
+                        // Pass the user's "today" as query parameters
+                        api.get(`/dashboard/stats?startDate=${startDateISO}&endDate=${endDateISO}`),
+                        api.get('/reports/dashboard-charts')
+                    ]);
+                    setStats(statsRes.data);
+                    setChartData(chartsRes.data);
+                } catch (err) {
+                    setError('Failed to fetch dashboard data.');
+                    console.error(err);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchAllData();
+        }, []);
 
     const salesChartOptions = {
         responsive: true,

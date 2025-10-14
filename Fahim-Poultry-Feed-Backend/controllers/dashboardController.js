@@ -4,11 +4,21 @@ const Transaction = require('../models/transactionModel');
 
 const getDashboardStats = async (req, res, next) => {
     try {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+        const { startDate, endDate } = req.query;
+        let startOfDay, endOfDay;
 
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
+        // If the frontend provides a specific date range, use it.
+        if (startDate && endDate) {
+            startOfDay = new Date(startDate);
+            endOfDay = new Date(endDate);
+        } else {
+            // Fallback for old behavior (server's "today")
+            startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            endOfDay = new Date();
+            endOfDay.setHours(23, 59, 59, 999);
+        }
 
         const salesTodayResult = await Transaction.aggregate([
             { $match: { type: 'SALE', createdAt: { $gte: startOfDay, $lte: endOfDay } } },
