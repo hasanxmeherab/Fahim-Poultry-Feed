@@ -9,10 +9,9 @@ const getTransactions = async (req, res, next) => {
         const filter = {};
         const { startDate, endDate } = req.query;
         if (startDate && endDate) {
-            const start = new Date(startDate);
-            start.setHours(0, 0, 0, 0);
-            const end = new Date(endDate);
-            end.setHours(23, 59, 59, 999);
+            // Correct UTC handling
+            const start = new Date(`${startDate}T00:00:00.000Z`);
+            const end = new Date(`${endDate}T23:59:59.999Z`);
             filter.createdAt = { $gte: start, $lte: end };
         }
 
@@ -40,18 +39,18 @@ const getTransactionsByBatch = async (req, res, next) => {
         const limit = 15;
         const page = Number(req.query.page) || 1;
         const batchId = req.params.batchId;
+        
         if (!mongoose.Types.ObjectId.isValid(batchId)) {
             return res.status(404).json({ message: 'Invalid Batch ID' });
         }
+
         const filter = { batch: new mongoose.Types.ObjectId(batchId) };
         
         if (req.query.date) {
-            const dateStr = req.query.date; // e.g., "2025-10-13"
-            
-            // Explicitly create the start and end of the day in UTC
+            // Correct UTC handling
+            const dateStr = req.query.date;
             const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
             const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
-            
             filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
         }
 
@@ -103,12 +102,10 @@ const getTransactionsForBuyer = async (req, res, next) => {
         
         const filter = { wholesaleBuyer: new mongoose.Types.ObjectId(buyerId) };
         if (req.query.date) {
-            const dateStr = req.query.date; // e.g., "2025-10-13"
-
-            // Explicitly create the start and end of the day in UTC
+            // Correct UTC handling
+            const dateStr = req.query.date;
             const startOfDay = new Date(`${dateStr}T00:00:00.000Z`);
             const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
-            
             filter.createdAt = { $gte: startOfDay, $lte: endOfDay };
         }
    

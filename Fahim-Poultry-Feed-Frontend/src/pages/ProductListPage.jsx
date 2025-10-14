@@ -7,7 +7,8 @@ import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
     TableRow, Paper, Modal, Fade,
-    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
+    CircularProgress // Ensure CircularProgress is imported
 } from '@mui/material';
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
@@ -27,6 +28,7 @@ const modalStyle = {
 };
 
 const ProductListPage = () => {
+
     const [searchTerm, setSearchTerm] = useState('');
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentProduct, setCurrentProduct] = useState(null);
@@ -39,26 +41,26 @@ const ProductListPage = () => {
     const [editFormData, setEditFormData] = useState({});
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    // State for the new confirmation dialog
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
     const [stockActionDetails, setStockActionDetails] = useState(null);
+
+    // ---LOADING STATES ---
+    const [isModalLoading, setIsModalLoading] = useState(false);       
+    const [isSavingEdit, setIsSavingEdit] = useState(false);          
+    const [isDeleting, setIsDeleting] = useState(false);              
+    const [isRemovingStock, setIsRemovingStock] = useState(false);     
+    
 
     useEffect(() => {
         setIsLoading(true);
         const timerId = setTimeout(() => {
           api.get(`/products?search=${searchTerm}`)
-            .then(response => {
-              setProducts(response.data);
-            })
+            .then(response => setProducts(response.data))
             .catch(err => {
               showErrorToast(err, 'Failed to fetch products.');
               setProducts([]);
             })
-            .finally(() => {
-              setIsLoading(false);
-            });
+            .finally(() => setIsLoading(false));
         }, 500);
         return () => clearTimeout(timerId);
     }, [searchTerm]);
@@ -79,43 +81,42 @@ const ProductListPage = () => {
     const handleModalSubmit = async (e) => {
         e.preventDefault();
         const numQuantity = parseInt(quantity, 10);
-        const isRemove = modalType === 'remove';
         if (isNaN(numQuantity) || numQuantity <= 0) {
           setFormError("Please enter a valid quantity greater than 0.");
           return;
         }
-        if (isRemove && numQuantity > currentProduct.quantity) {
-          setFormError(`Cannot remove more than the available stock (${currentProduct.quantity}).`);
-          return;
-        }
         
-        if (isRemove) {
+        if (modalType === 'remove') {
+            if (numQuantity > currentProduct.quantity) {
+              setFormError(`Cannot remove more than available stock (${currentProduct.quantity}).`);
+              return;
+            }
             setStockActionDetails({ product: currentProduct, quantity: numQuantity });
             setOpenConfirmDialog(true);
             closeModal();
-        } else {
-            const endpoint = 'addstock';
+        } else { // This is for 'add'
+            setIsModalLoading(true);
             const body = { addQuantity: numQuantity };
             try {
-              const response = await api.patch(`/products/${currentProduct._id}/${endpoint}`, body);
+              const response = await api.patch(`/products/${currentProduct._id}/addstock`, body);
               setProducts(products.map(p => p._id === currentProduct._id ? response.data : p));
               showSuccessToast(`Stock added successfully!`);
               closeModal();
             } catch (err) {
-              showErrorToast(err, `Failed to process stock change.`);
+              showErrorToast(err, `Failed to add stock.`);
+            } finally {
+              setIsModalLoading(false);
             }
         }
     };
 
     const handleConfirmStockRemove = async () => {
         if (!stockActionDetails) return;
-
+        setIsRemovingStock(true);
         const { product, quantity } = stockActionDetails;
-        const endpoint = 'removestock';
         const body = { removeQuantity: quantity };
-
         try {
-            const response = await api.patch(`/products/${product._id}/${endpoint}`, body);
+            const response = await api.patch(`/products/${product._id}/removestock`, body);
             setProducts(products.map(p => p._id === product._id ? response.data : p));
             showSuccessToast(`Stock removed successfully!`);
         } catch (err) {
@@ -123,6 +124,7 @@ const ProductListPage = () => {
         } finally {
             setOpenConfirmDialog(false);
             setStockActionDetails(null);
+            setIsRemovingStock(false);
         }
     };
     
@@ -133,7 +135,7 @@ const ProductListPage = () => {
 
     const handleConfirmDelete = async () => {
         if (!productToDelete) return;
-        setIsDeleting(true); 
+        setIsDeleting(true);
         try {
             await api.delete(`/products/${productToDelete._id}`);
             setProducts(products.filter(p => p._id !== productToDelete._id));
@@ -143,7 +145,7 @@ const ProductListPage = () => {
         } finally {
             setOpenDeleteDialog(false);
             setProductToDelete(null);
-            setIsDeleting(false); 
+            setIsDeleting(false);
         }
     };
 
@@ -154,7 +156,9 @@ const ProductListPage = () => {
 
     const handleCancelClick = () => setEditRowId(null);
     const handleEditFormChange = (e) => setEditFormData({ ...editFormData, [e.target.name]: e.target.value });
+
     const handleSaveClick = async (productId) => {
+        setIsSavingEdit(true);
         try {
             const response = await api.patch(`/products/${productId}`, editFormData);
             setProducts(products.map((p) => p._id === productId ? response.data : p));
@@ -162,20 +166,22 @@ const ProductListPage = () => {
             showSuccessToast('Product updated successfully!');
         } catch (err) {
             showErrorToast(err, "Could not update product.");
+        } finally {
+            setIsSavingEdit(false);
         }
     };
 
-
     return (
         <Box sx={{ padding: { xs: 1, sm: 2, md: 3 } }}>
-            {/* ... (Header, Search Bar, TableContainer, etc.) */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" component="h1">Inventory</Typography>
-                <Button component={Link} to="/add-product" variant="contained" color="success"> + Add New Product</Button>
+                <Button component={Link} to="/add-product" variant="contained" color="success" sx={{ whiteSpace: 'nowrap' }}>
+                    + Add New Product
+                </Button>
             </Box>
-            <TextField fullWidth label="Search by name or SKU..." variant="outlined" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ mb: 3, backgroundColor: 'white' }}/>
+            <TextField fullWidth label="Search by name or SKU..." variant="outlined" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ mb: 3, backgroundColor: 'white' }} />
+
             <TableContainer component={Paper}>
-                {/* ... (Table and TableHead) ... */}
                 <Table sx={{ tableLayout: 'fixed' }}>
                     <TableHead>
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
@@ -197,8 +203,10 @@ const ProductListPage = () => {
                                     <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                         {editRowId === product._id ? (
                                             <>
-                                                <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success">Save</Button>
-                                                <Button onClick={handleCancelClick} variant="outlined" size="small">Cancel</Button>
+                                                <Button onClick={() => handleSaveClick(product._id)} variant="contained" size="small" color="success" disabled={isSavingEdit}>
+                                                    {isSavingEdit ? <CircularProgress size={20} color="inherit" /> : 'Save'}
+                                                </Button>
+                                                <Button onClick={handleCancelClick} variant="outlined" size="small" disabled={isSavingEdit}>Cancel</Button>
                                             </>
                                         ) : (
                                             <>
@@ -223,8 +231,10 @@ const ProductListPage = () => {
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
                             <TextField fullWidth autoFocus margin="dense" label="Quantity" type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} error={!!formError} helperText={formError} required />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeModal}>Cancel</Button>
-                                <Button type="submit" variant="contained">Confirm</Button>
+                                <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
+                                <Button type="submit" variant="contained" disabled={isModalLoading}>
+                                    {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
+                                </Button>
                             </Box>
                         </Box>
                     </Box>
@@ -239,7 +249,7 @@ const ProductListPage = () => {
                 onCancel={() => setOpenDeleteDialog(false)}
                 confirmButtonText="Delete"
                 confirmColor="error"
-                isLoading={isDeleting} 
+                isLoading={isDeleting}
             />
 
             <ConfirmDialog
@@ -250,6 +260,7 @@ const ProductListPage = () => {
                 onCancel={() => setOpenConfirmDialog(false)}
                 confirmButtonText="Yes, Remove"
                 confirmColor="warning"
+                isLoading={isRemovingStock}
             />
         </Box>
     );

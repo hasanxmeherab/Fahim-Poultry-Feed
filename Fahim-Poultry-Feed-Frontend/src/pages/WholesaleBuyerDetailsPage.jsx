@@ -9,7 +9,7 @@ import {
     TableBody, TableCell, TableContainer, TableHead,
     TableRow, Paper, CircularProgress, Select, MenuItem,
     FormControl, InputLabel, Checkbox, FormControlLabel,
-    Pagination, Divider, IconButton 
+    Pagination, Divider, IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
@@ -28,7 +28,8 @@ const WholesaleBuyerDetailsPage = () => {
     const [newItem, setNewItem] = useState({ name: '', quantity: '1', weight: '', pricePerKg: '' });
     const [isCashPayment, setIsCashPayment] = useState(false);
     const [formError, setFormError] = useState('');
-    
+    const [isSubmittingSale, setIsSubmittingSale] = useState(false);
+
     const fetchDetails = async () => {
         try {
             let transUrl = `/transactions/wholesale-buyer/${id}?page=${page}`;
@@ -84,6 +85,7 @@ const WholesaleBuyerDetailsPage = () => {
             setFormError('You must add at least one item to the sale.');
             return;
         }
+        setIsSubmittingSale(true);
         const payload = {
             wholesaleBuyerId: id,
             items: saleItems.map(item => ({ name: item.name, quantity: Number(item.quantity) || 0, weight: Number(item.weight) || 0, price: item.totalPrice })),
@@ -100,6 +102,8 @@ const WholesaleBuyerDetailsPage = () => {
             fetchDetails();
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to complete sale.');
+        } finally {
+            setIsSubmittingSale(false);
         }
     };
     
@@ -162,17 +166,30 @@ const WholesaleBuyerDetailsPage = () => {
                     {saleItems.map((item, index) => ( 
                         <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}> 
                         <Typography variant="body2">{item.name} ({item.quantity} units, {item.weight}kg @ {item.pricePerKg}/kg)</Typography> 
-                        <Typography variant="body2">TK {item.totalPrice.toFixed(2)}</Typography> 
-                        <IconButton onClick={() => handleRemoveItemFromSale(index)} size="small" aria-label="remove item">
-                                        <CloseIcon fontSize="small" />
-                                    </IconButton>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography variant="body2">TK {item.totalPrice.toFixed(2)}</Typography> 
+                            <IconButton onClick={() => handleRemoveItemFromSale(index)} size="small" aria-label="remove item">
+                                <CloseIcon fontSize="small" />
+                            </IconButton>
+                        </Box>
                         </Box> 
                     ))} 
                         <Divider sx={{ my: 1 }} /> 
-                        <Typography variant="h6" sx={{ textAlign: 'right' }}>Final Total: TK {saleTotal.toFixed(2)}</Typography> </Box> )}
+                        <Typography variant="h6" sx={{ textAlign: 'right' }}>Final Total: TK {saleTotal.toFixed(2)}</Typography> 
+                    </Box> 
+                )}
                 <FormControlLabel control={<Checkbox checked={isCashPayment} onChange={(e) => setIsCashPayment(e.target.checked)} />} label="Paid in Cash 💵" sx={{ mt: 1 }} />
                 {formError && <Typography color="error" sx={{ mt: 1 }}>{formError}</Typography>}
-                <Button onClick={handleSubmitSale} variant="contained" color="success" fullWidth sx={{ mt: 2 }}>Complete Sale</Button>
+                <Button 
+                    onClick={handleSubmitSale} 
+                    variant="contained" 
+                    color="success" 
+                    fullWidth 
+                    sx={{ mt: 2 }}
+                    disabled={isSubmittingSale}
+                >
+                    {isSubmittingSale ? <CircularProgress size={24} color="inherit" /> : 'Complete Sale'}
+                </Button>
             </Paper>
 
             <Paper>

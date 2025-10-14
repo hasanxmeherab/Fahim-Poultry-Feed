@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import api from '../api/api';
-import { 
-    Paper, Typography, Box, Button, Link as MuiLink, Modal, Fade, 
+import {
+    Paper, Typography, Box, Button, Link as MuiLink, Modal, Fade,
     TextField, Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
-    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
-import ConfirmDialog from './ConfirmDialog.jsx'; 
+import ConfirmDialog from './ConfirmDialog.jsx';
 
 const modalStyle = {
     position: 'absolute',
@@ -30,8 +30,9 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
     // State for the Buy from Customer Modal
     const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     const [buyData, setBuyData] = useState({ quantity: '', weight: '', pricePerKg: '', referenceName: '' });
-    
-    // ---STATE for confirmation dialog ---
+    const [isSubmittingBuyBack, setIsSubmittingBuyBack] = useState(false); // Loading state for buy back
+
+    // State for confirmation dialog
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [discountToDeleteId, setDiscountToDeleteId] = useState(null);
     
@@ -48,16 +49,13 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
         }
     };
 
-     // ---function to OPEN the dialog ---
     const handleRemoveDiscount = (discountId) => {
-        setDiscountToDeleteId(discountId); // Set which discount to delete
-        setIsConfirmOpen(true);             // Open the dialog
+        setDiscountToDeleteId(discountId);
+        setIsConfirmOpen(true);
     };
 
-    // ---function to handle the actual API call after confirmation ---
     const handleConfirmRemoveDiscount = async () => {
         if (!discountToDeleteId) return;
-
         try {
             await api.delete(`/batches/${batch._id}/discount/${discountToDeleteId}`);
             showSuccessToast('Discount removed successfully!');
@@ -65,35 +63,32 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
         } catch (err) {
             showErrorToast(err, 'Failed to remove discount.');
         } finally {
-            setIsConfirmOpen(false);      // Close the dialog
-            setDiscountToDeleteId(null); // Reset the ID
+            setIsConfirmOpen(false);
+            setDiscountToDeleteId(null);
         }
     };
-
 
     const handleBuyChange = (e) => {
         setBuyData({ ...buyData, [e.target.name]: e.target.value });
     };
 
-    // --- UPDATED LOGIC: Buy Back only performs the transaction and refreshes data ---
     const handleBuySubmit = async (e) => {
         e.preventDefault();
         setFormError(''); 
 
-        // Basic Validation
         if (!buyData.quantity || !buyData.weight || !buyData.pricePerKg || parseFloat(buyData.quantity) <= 0) {
              setFormError("Please enter valid positive numbers for quantity, weight, and price.");
              return;
         }
 
+        setIsSubmittingBuyBack(true);
+
         try {
             const payload = { customerId: batch.customer, ...buyData };
             
-            // 1. Post the Buy Back Transaction
             const response = await api.post('/customers/buyback', payload);
             const newTransaction = response.data;
             
-            // 2. Generate the receipt data (using transaction details)
             const receiptData = {
                 type: 'buy_back',
                 customerName: newTransaction.customer?.name || 'N/A',
@@ -109,16 +104,16 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
             sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
             window.open('/receipt', '_blank');
             
-            // 3. Refresh page data, but DO NOT start a new batch.
             onDataRefresh();
             showSuccessToast('Buy Back transaction complete!');
             
-            // 4. Close modal and reset form
             setIsBuyModalOpen(false);
             setBuyData({ quantity: '', weight: '', pricePerKg: '', referenceName: '' });
             
         } catch (err) {
             setFormError(err.response?.data?.message || 'Failed to process transaction.');
+        } finally {
+            setIsSubmittingBuyBack(false);
         }
     };
 
@@ -131,7 +126,6 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                     <Typography variant="h6">Batch Actions</Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         
-                        {/* BUTTON 1: BUY BACK (Transaction only - Always available on active batch) */}
                         {batch.status === 'Active' && (
                             <Button 
                                 onClick={() => { 
@@ -145,14 +139,12 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                             </Button>
                         )}
 
-                        {/* BUTTON 2: END & START NEW (For Active Batches) OR START NEW (For Completed Batches) */}
                         <Button 
                             onClick={onStartNewBatch} 
                             variant="outlined" 
                             size="small" 
                             color="success"
                         >
-                            {/* The "End & Start New" handler is now responsible for closing the ledger */}
                             {batch.status === 'Active' ? 'End & Start New Batch' : 'Start New Batch'}
                         </Button>
                         
@@ -194,7 +186,6 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                 </Box>
             </Paper>
 
-            {/* BUY FROM CUSTOMER MODAL (The submit only refreshes data) */}
             <Dialog open={isBuyModalOpen} onClose={() => setIsBuyModalOpen(false)}>
                 <DialogTitle>Buy Back Transaction</DialogTitle>
                 <Box component="form" onSubmit={handleBuySubmit}>
@@ -208,13 +199,14 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                         {formError && <Typography color="error" sx={{ mt: 1 }}>{formError}</Typography>}
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setIsBuyModalOpen(false)}>Cancel</Button>
-                        <Button type="submit" variant="contained">Confirm Transaction</Button>
+                        <Button onClick={() => setIsBuyModalOpen(false)} disabled={isSubmittingBuyBack}>Cancel</Button>
+                        <Button type="submit" variant="contained" disabled={isSubmittingBuyBack}>
+                            {isSubmittingBuyBack ? <CircularProgress size={24} color="inherit" /> : 'Confirm Transaction'}
+                        </Button>
                     </DialogActions>
                 </Box>
             </Dialog>
 
-            {/* DISCOUNT MODAL */}
             <Modal open={isDiscountModalOpen} onClose={() => setIsDiscountModalOpen(false)} closeAfterTransition>
                 <Fade in={isDiscountModalOpen}><Box sx={modalStyle}>
                     <Typography variant="h6">Add Discount</Typography>
@@ -227,7 +219,6 @@ const BatchInfoCard = ({ batch, batchDetails, onStartNewBatch, onDataRefresh }) 
                 </Box></Fade>
             </Modal>
 
-            {/* SUMMARY MODAL */}
             <Modal open={isSummaryModalOpen} onClose={() => setIsSummaryModalOpen(false)} closeAfterTransition>
                 <Fade in={isSummaryModalOpen}><Box sx={modalStyle}>
                     <Typography variant="h6">Total Items Sold in Batch</Typography>

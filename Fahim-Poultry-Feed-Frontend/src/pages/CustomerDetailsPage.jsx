@@ -25,6 +25,7 @@ const CustomerDetailsPage = () => {
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isCyclingBatch, setIsCyclingBatch] = useState(false);
     const [batchDetails, setBatchDetails] = useState({
         totalSold: 0,
         totalBought: 0,
@@ -138,12 +139,15 @@ const CustomerDetailsPage = () => {
     // --- NEW: Executes the API call only after user confirms via the Dialog ---
     const handleConfirmBatchCycle = async () => {
         setIsConfirmModalOpen(false);
+        setIsCyclingBatch(true);
         try {
             await api.post('/batches/start', { customerId: id });
             showSuccessToast('Batch cycle successful!');
-            refreshData(); 
+            await refreshData(); 
         } catch (err) {
             showErrorToast(err, 'Failed to cycle batch.');
+        } finally {
+            setIsCyclingBatch(false);
         }
     };
     
@@ -284,7 +288,8 @@ const CustomerDetailsPage = () => {
                 onConfirm={handleConfirmBatchCycle}
                 onCancel={() => setIsConfirmModalOpen(false)}
                 confirmButtonText="Yes, Proceed"
-                confirmColor={batches.length > 0 ? 'error' : 'success'} // Red for ending batch, Green for starting first batch
+                confirmColor={batches.length > 0 ? 'error' : 'success'} 
+                isLoading={isCyclingBatch}
             />
             
         </Box>

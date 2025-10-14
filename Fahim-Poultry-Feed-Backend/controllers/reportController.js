@@ -6,10 +6,8 @@ const getSalesReport = async (req, res, next) => {
         if (!startDate || !endDate) {
             return res.status(400).json({ message: 'Please provide both a start and end date.' });
         }
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const start = new Date(`${startDate}T00:00:00.000Z`);
+        const end = new Date(`${endDate}T23:59:59.999Z`);
         const sales = await Transaction.find({
             type: 'SALE',
             createdAt: { $gte: start, $lte: end }
