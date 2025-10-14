@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -27,7 +27,7 @@ const LoadingSpinner = () => (
     </Box>
 );
 
-// --- Lazily import all page components for code splitting ---
+// --- Lazily import all page components ---
 const HomePage = lazy(() => import('./pages/DashboardPage'));
 const CustomerDetailsPage = lazy(() => import('./pages/CustomerDetailsPage'));
 const SalesReportPage = lazy(() => import('./pages/SalesReportPage'));
@@ -50,7 +50,7 @@ const EditWholesaleProductPage = lazy(() => import('./pages/EditWholesaleProduct
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 
 
-const Sidebar = ({ handleLogout }) => {
+const Sidebar = ({ handleLogout, isLoggingOut }) => {
     return (
         <aside className="sidebar">
             <div className="sidebar-header"><h3>Fahim Poultry Feed</h3></div>
@@ -66,7 +66,20 @@ const Sidebar = ({ handleLogout }) => {
                 </ul>
             </nav>
             <div className="sidebar-footer">
-                <button onClick={handleLogout} className="logout-button"><span className="icon"><LogoutIcon /></span><span>Logout</span></button>
+                <button 
+                    onClick={handleLogout} 
+                    className="logout-button"
+                    disabled={isLoggingOut} 
+                >
+                    {isLoggingOut ? (
+                        <CircularProgress size={22} color="inherit" />
+                    ) : (
+                        <>
+                            <span className="icon"><LogoutIcon /></span>
+                            <span>Logout</span>
+                        </>
+                    )}
+                </button>               
             </div>
         </aside>
     );
@@ -102,11 +115,19 @@ const Footer = () => {
 const AppContent = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { isAuthenticated, logout } = useAuth(); // <-- Use context for auth state
+    const { isAuthenticated, logout } = useAuth();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const handleLogout = async () => {
+        setIsLoggingOut(true);
+        try {
+            await logout();
+            navigate('/login');
+        } catch (error) {
+            console.error("Logout failed:", error);
+        } finally {
+            setIsLoggingOut(false);
+        }
     };
 
     const isAuthPage = location.pathname === '/login';
@@ -119,7 +140,7 @@ const AppContent = () => {
             <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
             
             <div className="main-content-wrapper">
-                {showLayout && <Sidebar handleLogout={handleLogout} />}
+                {showLayout && <Sidebar handleLogout={handleLogout} isLoggingOut={isLoggingOut} />}
                 <div className={showLayout ? "main-content" : "main-content-fullscreen"}>
                     <Suspense fallback={<LoadingSpinner />}>
                         <Routes>
