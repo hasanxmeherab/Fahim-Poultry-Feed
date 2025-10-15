@@ -11,7 +11,7 @@ import {
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
-import ConfirmDialog from '../components/ConfirmDialog.jsx'; // <-- THE MISSING IMPORT IS NOW HERE
+import ConfirmDialog from '../components/ConfirmDialog.jsx'; 
 
 const modalStyle = {
     position: 'absolute',

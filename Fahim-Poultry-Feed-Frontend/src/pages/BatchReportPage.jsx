@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api.js';
 import { useParams } from 'react-router-dom';
+import { printHtml } from '../utils/printUtils.js';
+import { showErrorToast } from '../utils/notifications.js'; // 1. IMPORT a toast for showing errors
 
 // MUI Imports
 import {
@@ -20,6 +22,7 @@ const BatchReportPage = () => {
     const { id } = useParams();
     const [report, setReport] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null); // 2. ADD error state
 
     useEffect(() => {
         const fetchReport = async () => {
@@ -27,7 +30,11 @@ const BatchReportPage = () => {
                 const response = await api.get(`/reports/batch/${id}`);
                 setReport(response.data);
             } catch (err) {
-                console.error("Failed to fetch batch report.");
+                // 3. IMPROVED ERROR HANDLING: Show a toast and set the error state.
+                const errorMessage = 'Failed to fetch batch report.';
+                setError(errorMessage);
+                showErrorToast(err, errorMessage);
+                console.error(err);
             } finally {
                 setIsLoading(false);
             }
@@ -35,83 +42,50 @@ const BatchReportPage = () => {
         fetchReport();
     }, [id]);
 
-    // --- UPDATED handlePrint function ---
     const handlePrint = (sectionId, title) => {
-        const printContent = document.getElementById(sectionId);
-        if (!printContent) return;
+        const section = document.getElementById(sectionId);
+        if (!section || !report) return;
 
-        const printWindow = window.open('', '_blank', 'height=600,width=800');
-        
-        printWindow.document.write('<html><head><title>' + title + '</title>');
-        printWindow.document.write('<link rel="stylesheet" href="/src/index.css" type="text/css" />');
-        printWindow.document.write('<style>body { padding: 20px; } table { margin-top: 0; } .no-print { display: none; } h3 { text-align: right; font-size: 1.2em; border-top: 2px solid black; padding-top: 10px; } </style>');
-        printWindow.document.write('</head><body>');
-        
-        const contentClone = printContent.cloneNode(true);
-        const button = contentClone.querySelector('button');
-        if (button) button.remove();
+        const contentClone = section.cloneNode(true);
+        contentClone.querySelector('.no-print')?.remove();
 
-        let printHTML = contentClone.innerHTML;
+        let finalHtml = `<h2>${title}</h2>` + contentClone.innerHTML;
 
-        // Add totals based on the section being printed
-        if (sectionId === 'sales-section' && report) {
-            printHTML += `<h3>Total Sales Amount: TK ${report.totalSold.toFixed(2)}</h3>`;
+        if (sectionId === 'sales-section') {
+            finalHtml += `<h3 class="print-total">Total Sales Amount: TK ${report.totalSold.toFixed(2)}</h3>`;
         }
-        if (sectionId === 'buyback-section' && report) {
-            printHTML += `<h3>Total Buy Back Amount: TK ${report.totalBought.toFixed(2)}</h3>`;
+        if (sectionId === 'buyback-section') {
+            finalHtml += `<h3 class="print-total">Total Buy Back Amount: TK ${report.totalBought.toFixed(2)}</h3>`;
         }
-
-        printWindow.document.write(printHTML);
-        printWindow.document.write('</body></html>');
         
-        printWindow.document.close();
-        printWindow.focus();
-        
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+        printHtml(finalHtml, title);
     };
-
-    // --- UPDATED handlePrintFullReport function ---
+    
     const handlePrintFullReport = () => {
         const salesSection = document.getElementById('sales-section');
         const buyBackSection = document.getElementById('buyback-section');
-
         if (!salesSection || !buyBackSection || !report) return;
 
         const salesClone = salesSection.cloneNode(true);
         const buyBackClone = buyBackSection.cloneNode(true);
+        salesClone.querySelector('.no-print')?.remove();
+        buyBackClone.querySelector('.no-print')?.remove();
 
-        salesClone.querySelector('button')?.remove();
-        buyBackClone.querySelector('button')?.remove();
-
-        const salesContent = salesClone.innerHTML;
-        const buyBackContent = buyBackClone.innerHTML;
-
-        const printWindow = window.open('', '_blank', 'height=600,width=800');
+        let finalHtml = `<h1>Full Batch Report</h1>` +
+                        salesClone.innerHTML +
+                        `<h3 class="print-total">Total Sales Amount: TK ${report.totalSold.toFixed(2)}</h3>` +
+                        buyBackClone.innerHTML +
+                        `<h3 class="print-total">Total Buy Back Amount: TK ${report.totalBought.toFixed(2)}</h3>`;
         
-        printWindow.document.write('<html><head><title>Full Batch Report</title>');
-        printWindow.document.write('<link rel="stylesheet" href="/src/index.css" type="text/css" />');
-        printWindow.document.write('<style>body { padding: 20px; } .report-section-header > h2 { margin-top: 0; } h3 { text-align: right; font-size: 1.2em; border-top: 2px solid black; padding-top: 10px; margin-top: 15px; } </style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<h1>Full Batch Report</h1>');
-        printWindow.document.write(salesContent);
-        printWindow.document.write(`<h3>Total Sales Amount: TK ${report.totalSold.toFixed(2)}</h3>`); // Add sales total
-        printWindow.document.write(buyBackContent);
-        printWindow.document.write(`<h3>Total Buy Back Amount: TK ${report.totalBought.toFixed(2)}</h3>`); // Add buy back total
-        printWindow.document.write('</body></html>');
-        
-        printWindow.document.close();
-        printWindow.focus();
-        
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
+        printHtml(finalHtml, 'Full Batch Report');
     };
 
     if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
+    
+    // 4. Show the specific error if one occurred
+    if (error) return <Typography color="error" sx={{ p: 3 }}>{error}</Typography>;
+
+    // This condition remains for the case where the API returns no data without an error
     if (!report) return <Typography color="error" sx={{ p: 3 }}>Could not load report data.</Typography>;
 
     return (

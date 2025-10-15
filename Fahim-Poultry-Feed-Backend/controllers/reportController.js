@@ -1,4 +1,5 @@
 const Transaction = require('../models/transactionModel');
+const mongoose = require('mongoose'); // Import mongoose
 
 const getSalesReport = async (req, res, next) => {
     try {
@@ -19,9 +20,15 @@ const getSalesReport = async (req, res, next) => {
     }
 };
 
+// --- UPGRADED getBatchReport function ---
 const getBatchReport = async (req, res, next) => {
     try {
         const { id } = req.params; // Batch ID
+
+        // 1. ADDED VALIDATION: Check if the provided ID is a valid MongoDB ObjectId.
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(404).json({ message: 'Batch not found. The provided ID is invalid.' });
+        }
 
         const sales = await Transaction.find({ batch: id, type: 'SALE' })
             .sort({ createdAt: 'asc' })

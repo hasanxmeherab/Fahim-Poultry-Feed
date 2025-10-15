@@ -7,6 +7,12 @@ const saleSchema = new Schema({
     ref: 'Customer', // This links the sale to a specific customer
     required: false,
   },
+  
+  wholesaleBuyer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WholesaleBuyer',
+  },
+
   items: [{
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -31,13 +37,7 @@ const saleSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Batch'
     },
-    // Change the 'customer' field
 
-// Add the new 'wholesaleBuyer' field
-wholesaleBuyer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'WholesaleBuyer',
-},
 
 }, { timestamps: true });
 

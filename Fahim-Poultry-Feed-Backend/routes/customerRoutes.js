@@ -1,4 +1,5 @@
 const express = require('express');
+
 const { 
     getCustomers, 
     getCustomer,
@@ -10,33 +11,29 @@ const {
     buyFromCustomer
 } = require('../controllers/customerController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
-
 const { createCustomerRules, updateCustomerRules, validate } = require('../validation/customer.validation.js');
 
 const router = express.Router();
 
-// Route to get all customers
-router.get('/', firebaseAuthMiddleware, getCustomers);
+// --- Apply middleware to all routes in this file ---
+router.use(firebaseAuthMiddleware);
 
-// Route to create a new customer WITH validation
-// This is now the ONLY POST route for '/'
-router.post('/', firebaseAuthMiddleware, createCustomerRules(), validate, createCustomer);
+// --- Routes for the customer collection (/api/customers) ---
+router.route('/')
+    .get(getCustomers) // GET /api/customers
+    .post(createCustomerRules(), validate, createCustomer); // POST /api/customers
 
-// Route to add a deposit for a specific customer
-router.patch('/:id/deposit', firebaseAuthMiddleware, addDeposit);
+// --- Routes for a single customer by ID (/api/customers/:id) ---
+router.route('/:id')
+    .get(getCustomer) // GET /api/customers/:id
+    .patch(updateCustomerRules(), validate, updateCustomer) // PATCH /api/customers/:id
+    .delete(deleteCustomer); // DELETE /api/customers/:id
 
-// Make Withdrawal
-router.patch('/:id/withdrawal', firebaseAuthMiddleware, makeWithdrawal);
+// --- Routes for specific financial actions on a customer ---
+router.patch('/:id/deposit', addDeposit); // PATCH /api/customers/:id/deposit
+router.patch('/:id/withdrawal', makeWithdrawal); // PATCH /api/customers/:id/withdrawal
 
-// Delete Customer
-router.delete('/:id', firebaseAuthMiddleware, deleteCustomer);
-
-// Update Customer
-router.patch('/:id', firebaseAuthMiddleware, updateCustomerRules(), validate, updateCustomer);
-
-router.get('/:id', firebaseAuthMiddleware, getCustomer);
-
-// buying from a customer
-router.post('/buyback', firebaseAuthMiddleware, buyFromCustomer);
+// --- Route for a specific business action (buy back from customer) ---
+router.post('/buyback', buyFromCustomer); // POST /api/customers/buyback
 
 module.exports = router;
