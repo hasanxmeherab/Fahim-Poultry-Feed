@@ -50,7 +50,8 @@ const EditWholesaleProductPage = lazy(() => import('./pages/EditWholesaleProduct
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 
 
-const Sidebar = ({ handleLogout, isLoggingOut }) => {
+// --- Corrected Sidebar component definition ---
+const Sidebar = ({ handleLogout, isLoggingOut }) => { // Now accepts isLoggingOut
     return (
         <aside className="sidebar">
             <div className="sidebar-header"><h3>Fahim Poultry Feed</h3></div>
@@ -66,20 +67,20 @@ const Sidebar = ({ handleLogout, isLoggingOut }) => {
                 </ul>
             </nav>
             <div className="sidebar-footer">
-                <button 
-                    onClick={handleLogout} 
+                <button
+                    onClick={handleLogout}
                     className="logout-button"
-                    disabled={isLoggingOut} 
+                    disabled={isLoggingOut} // Button is disabled when logging out
                 >
                     {isLoggingOut ? (
-                        <CircularProgress size={22} color="inherit" />
+                        <CircularProgress size={22} color="inherit" /> // Show spinner
                     ) : (
                         <>
                             <span className="icon"><LogoutIcon /></span>
                             <span>Logout</span>
                         </>
                     )}
-                </button>               
+                </button>
             </div>
         </aside>
     );
@@ -87,15 +88,15 @@ const Sidebar = ({ handleLogout, isLoggingOut }) => {
 
 const Footer = () => {
     return (
-        <Box 
-            component="footer" 
+        <Box
+            component="footer"
             sx={{
                 py: 2,
-                px: { xs: 2, md: '15%' }, 
+                px: { xs: 2, md: '15%' },
                 borderTop: '1px solid #e0e0e0',
                 bgcolor: '#f7f9fc',
                 display: 'flex',
-                justifyContent: 'space-between', 
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: 2,
@@ -116,37 +117,52 @@ const AppContent = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated, logout } = useAuth();
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false); // State to control the spinner
 
     const handleLogout = async () => {
-        setIsLoggingOut(true);
+        setIsLoggingOut(true); // Start spinner
         try {
             await logout();
             navigate('/login');
         } catch (error) {
             console.error("Logout failed:", error);
+            // Optionally show an error toast here if needed
         } finally {
-            setIsLoggingOut(false);
+            setIsLoggingOut(false); // Stop spinner
         }
     };
 
     const isAuthPage = location.pathname === '/login';
     const isReceiptPage = location.pathname === '/receipt';
+    // Logic to determine if the 404 page should show full layout (can be refined)
+    const isErrorPage = ![
+        '/', '/login', '/receipt', '/customers', '/add-customer', '/inventory', '/add-product',
+        '/make-sale', '/wholesale', '/add-wholesale-buyer', '/add-wholesale-product',
+        '/reports/sales', '/history'
+    ].some(path => location.pathname === path) && // Exact matches
+        !/^\/edit-customer\/.+$/.test(location.pathname) && // Regex for edit customer
+        !/^\/customers\/.+$/.test(location.pathname) && // Regex for customer details
+        !/^\/edit-product\/.+$/.test(location.pathname) && // Regex for edit product
+        !/^\/reports\/batch\/.+$/.test(location.pathname) && // Regex for batch report
+        !/^\/edit-wholesale-buyer\/.+$/.test(location.pathname) && // Regex for edit wholesale buyer
+        !/^\/wholesale-buyers\/.+$/.test(location.pathname) && // Regex for wholesale buyer details
+        !/^\/edit-wholesale-product\/.+$/.test(location.pathname); // Regex for edit wholesale product
 
-    const showLayout = isAuthenticated && !isAuthPage && !isReceiptPage;
+    const showLayout = isAuthenticated && !isAuthPage && !isReceiptPage && !isErrorPage;
 
     return (
         <div className="app-layout">
             <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
-            
+
             <div className="main-content-wrapper">
+                {/* Pass isLoggingOut state to Sidebar */}
                 {showLayout && <Sidebar handleLogout={handleLogout} isLoggingOut={isLoggingOut} />}
                 <div className={showLayout ? "main-content" : "main-content-fullscreen"}>
                     <Suspense fallback={<LoadingSpinner />}>
                         <Routes>
                             <Route path="/login" element={<LoginPage />} />
                             <Route path="/receipt" element={<ReceiptPage />} />
-                            
+
                             <Route element={<ProtectedRoute />}>
                                 <Route path="/" element={<HomePage />} />
                                 <Route path="/customers" element={<CustomerListPage />} />
@@ -160,14 +176,16 @@ const AppContent = () => {
                                 <Route path="/history" element={<HistoryPage />} />
                                 <Route path="/reports/sales" element={<SalesReportPage />} />
                                 <Route path="/reports/batch/:id" element={<BatchReportPage />} />
-                                <Route path="/wholesale" element={<WholesalePage />} />                        
+                                <Route path="/wholesale" element={<WholesalePage />} />
                                 <Route path="/add-wholesale-buyer" element={<AddWholesaleBuyerPage />} />
                                 <Route path="/edit-wholesale-buyer/:id" element={<EditWholesaleBuyerPage />} />
                                 <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
                                 <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
                                 <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
-                                <Route path="*" element={<ErrorPage />} />
+                                {/* Error route moved outside */}
                             </Route>
+                             {/* Catch-all 404 Route */}
+                             <Route path="*" element={<ErrorPage />} />
                         </Routes>
                     </Suspense>
                 </div>
