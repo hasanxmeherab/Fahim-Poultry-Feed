@@ -1,39 +1,51 @@
-const express = require('express');
+    const express = require('express');
 
-const { 
-    getCustomers, 
-    getCustomer,
-    createCustomer, 
-    addDeposit, 
-    makeWithdrawal,
-    deleteCustomer,
-    updateCustomer,
-    buyFromCustomer
-} = require('../controllers/customerController');
-const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
-const { createCustomerRules, updateCustomerRules, validate } = require('../validation/customer.validation.js');
+    const {
+        getCustomers,
+        getCustomer,
+        createCustomer,
+        addDeposit,
+        makeWithdrawal,
+        deleteCustomer,
+        updateCustomer,
+        buyFromCustomer
+    } = require('../controllers/customerController');
+    const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-const router = express.Router();
+    // --- UPDATED IMPORTS ---
+    const {
+        createCustomerRules,
+        updateCustomerRules,
+        amountRules, // Import amount rules
+        buyBackRules // Import buy back rules
+     } = require('../validation/customer.validation.js'); // Specific customer rules
+    const { validate } = require('../validation/shared.validation.js'); // Shared validate helper
+    // --- END UPDATED IMPORTS ---
 
-// --- Apply middleware to all routes in this file ---
-router.use(firebaseAuthMiddleware);
+    const router = express.Router();
 
-// --- Routes for the customer collection (/api/customers) ---
-router.route('/')
-    .get(getCustomers) // GET /api/customers
-    .post(createCustomerRules(), validate, createCustomer); // POST /api/customers
+    // Apply auth middleware to all customer routes
+    router.use(firebaseAuthMiddleware);
 
-// --- Routes for a single customer by ID (/api/customers/:id) ---
-router.route('/:id')
-    .get(getCustomer) // GET /api/customers/:id
-    .patch(updateCustomerRules(), validate, updateCustomer) // PATCH /api/customers/:id
-    .delete(deleteCustomer); // DELETE /api/customers/:id
+    // --- Routes for the customer collection (/api/customers) ---
+    router.route('/')
+        .get(getCustomers)
+        .post(createCustomerRules(), validate, createCustomer); // Added validation
 
-// --- Routes for specific financial actions on a customer ---
-router.patch('/:id/deposit', addDeposit); // PATCH /api/customers/:id/deposit
-router.patch('/:id/withdrawal', makeWithdrawal); // PATCH /api/customers/:id/withdrawal
+    // --- Routes for a single customer by ID (/api/customers/:id) ---
+    router.route('/:id')
+        .get(getCustomer)
+        .patch(updateCustomerRules(), validate, updateCustomer) // Added validation
+        .delete(deleteCustomer); // Add validation if needed (e.g., param('id').isMongoId())
 
-// --- Route for a specific business action (buy back from customer) ---
-router.post('/buyback', buyFromCustomer); // POST /api/customers/buyback
+    // --- Routes for specific financial actions ---
+    // Added amount validation
+    router.patch('/:id/deposit', amountRules(), validate, addDeposit);
+    router.patch('/:id/withdrawal', amountRules(), validate, makeWithdrawal);
 
-module.exports = router;
+    // --- Route for buy back action ---
+    // Added buy back validation
+    router.post('/buyback', buyBackRules(), validate, buyFromCustomer);
+
+    module.exports = router;
+    

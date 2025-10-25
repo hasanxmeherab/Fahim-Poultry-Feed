@@ -1,34 +1,44 @@
-const express = require('express');
-const router = express.Router();
-const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+    const express = require('express');
+    const router = express.Router();
+    const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Import all the functions from the controller
-const {
-     getBuyers,
-     getBuyerById,
-     createBuyer,
-     updateBuyer,
-     deleteBuyer,
-     addDepositToBuyer,
-     makeWithdrawalFromBuyer
-} = require('../controllers/wholesaleBuyerController');
+    const {
+        getBuyers,
+        getBuyerById,
+        createBuyer,
+        updateBuyer,
+        deleteBuyer,
+        addDepositToBuyer,
+        makeWithdrawalFromBuyer
+    } = require('../controllers/wholesaleBuyerController');
 
-const { createWholesaleBuyerRules, updateWholesaleBuyerRules, validate } = require('../validation/customer.validation.js');
+    // --- UPDATED IMPORTS ---
+    const {
+        createWholesaleBuyerRules,
+        updateWholesaleBuyerRules,
+        amountRules // Import amount rules
+    } = require('../validation/wholesaleBuyer.validation.js'); // Import from new file
+    const { validate } = require('../validation/shared.validation.js'); // Import validate helper
+    // --- END UPDATED IMPORTS ---
 
-// Routes for the base URL (/api/wholesale-buyers)
-router.route('/')
-     .get(firebaseAuthMiddleware, getBuyers)
-     // THIS IS THE CORRECTED LINE:
-     .post(firebaseAuthMiddleware, createWholesaleBuyerRules(), validate, createBuyer);
+    // Apply auth middleware to all routes
+    router.use(firebaseAuthMiddleware);
 
-// Routes for a specific buyer by ID (/api/wholesale-buyers/:id)
-router.route('/:id')
-     .get(firebaseAuthMiddleware, getBuyerById)
-     .patch(firebaseAuthMiddleware, updateWholesaleBuyerRules(), validate, updateBuyer)
-     .delete(firebaseAuthMiddleware, deleteBuyer);
+    // Routes for the collection
+    router.route('/')
+        .get(getBuyers)
+        .post(createWholesaleBuyerRules(), validate, createBuyer); // Added validation
 
-// Routes for financial transactions
-router.patch('/:id/deposit', firebaseAuthMiddleware, addDepositToBuyer);
-router.patch('/:id/withdrawal', firebaseAuthMiddleware, makeWithdrawalFromBuyer);
+    // Routes for a specific buyer by ID
+    router.route('/:id')
+        .get(getBuyerById) // Add validation if needed (e.g., param('id').isMongoId())
+        .patch(updateWholesaleBuyerRules(), validate, updateBuyer) // Added validation
+        .delete(deleteBuyer); // Add validation if needed
 
-module.exports = router;
+    // Routes for financial transactions
+    // Added amount validation
+    router.patch('/:id/deposit', amountRules(), validate, addDepositToBuyer);
+    router.patch('/:id/withdrawal', amountRules(), validate, makeWithdrawalFromBuyer);
+
+    module.exports = router;
+    

@@ -11,32 +11,29 @@ const {
 } = require('../controllers/productController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-// Import all necessary validation rules from your validation file
-const { 
-  createProductRules, 
-  updateProductRules, 
-  stockUpdateRules, 
-  validate 
-} = require('../validation/customer.validation.js');
+// --- UPDATED IMPORTS ---
+const {
+  createProductRules,
+  updateProductRules,
+  stockUpdateRules,
+} = require('../validation/product.validation.js'); // Import from the new file
+const { validate } = require('../validation/shared.validation.js'); // Import validate helper
+// --- END UPDATED IMPORTS ---
 
 const router = express.Router();
 
-// --- Routes for the collection ---
+// --- Routes remain the same, using the imported rules and validate ---
 router.route('/')
     .get(firebaseAuthMiddleware, getProducts)
     .post(firebaseAuthMiddleware, createProductRules(), validate, createProduct);
 
-// --- Route for checking if a SKU exists ---
 router.get('/check-sku', firebaseAuthMiddleware, checkSkuExists);
 
-// --- Routes for a single document by ID ---
 router.route('/:id')
     .get(firebaseAuthMiddleware, getProduct)
-    // THIS IS THE CORRECTED AND ONLY PATCH ROUTE FOR /:id
     .patch(firebaseAuthMiddleware, updateProductRules(), validate, updateProduct)
     .delete(firebaseAuthMiddleware, deleteProduct);
 
-// --- Routes for managing stock ---
 router.patch('/:id/addstock', firebaseAuthMiddleware, stockUpdateRules(), validate, addStock);
 router.patch('/:id/removestock', firebaseAuthMiddleware, stockUpdateRules(), validate, removeStock);
 
