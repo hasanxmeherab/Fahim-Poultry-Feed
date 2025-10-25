@@ -18,31 +18,38 @@ const wholesaleProductRoutes = require('./routes/wholesaleProductRoutes');
 
 const admin = require('firebase-admin');
 
-// --- Security Improvement: Load service account from environment variables ---
-// Avoid loading directly from file in production. Store the JSON content
-// in an environment variable (e.g., FIREBASE_SERVICE_ACCOUNT_JSON)
-// and parse it here. For local development, using the file is okay,
-// BUT MAKE SURE IT'S IN .gitignore.
+// --- Securely Load Firebase Admin Credentials ---
 let serviceAccount;
 try {
-    // Attempt to load from file (for local dev, ensure file is gitignored)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    // Production: Load from environment variable
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    console.log('Loaded Firebase service account from environment variable.');
+  } else {
+    // Development: Load from file (Ensure serviceAccountKey.json is in .gitignore!)
+    console.warn('Attempting to load Firebase service account from local file (serviceAccountKey.json). Ensure this file is in .gitignore!');
     serviceAccount = require('./serviceAccountKey.json');
+     if (!serviceAccount || Object.keys(serviceAccount).length === 0) { // Added check for empty object
+        throw new Error('serviceAccountKey.json is empty or invalid.');
+     }
+    console.log('Loaded Firebase service account from local file.');
+  }
 } catch (error) {
-    console.error("Failed to load serviceAccountKey.json. Ensure the file exists for local development or environment variable is set for production.", error);
-    // If loading from environment variable:
-    // try {
-    //   serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-    // } catch (parseError) {
-    //   console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON environment variable.", parseError);
-    //   process.exit(1); // Exit if config is crucial and missing/invalid
-    // }
-    process.exit(1); // Exit if service account is missing
+  console.error('CRITICAL ERROR: Failed to load Firebase Admin credentials.', error.message);
+  process.exit(1); // Exit if Firebase Admin SDK cannot be initialized
 }
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
-// --- End Security Improvement ---
+// Initialize Firebase Admin SDK
+try {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('Firebase Admin SDK initialized successfully.');
+} catch (initError) {
+    console.error('CRITICAL ERROR: Failed to initialize Firebase Admin SDK.', initError);
+    process.exit(1);
+}
+// --- End Secure Loading ---
 
 // Initialize the Express app
 const app = express();
@@ -90,7 +97,7 @@ const startServer = async () => {
 
         // Connect to MongoDB
         await mongoose.connect(process.env.MONGO_URI);
-        console.log('Successfully connected to MongoDB! データベースに接続しました');
+        console.log('Successfully connected to MongoDB!'); // Removed Japanese text for clarity
 
         // Start the Express server
         app.listen(PORT, () => {
@@ -104,3 +111,4 @@ const startServer = async () => {
 
 // --- Call the function to start the server ---
 startServer();
+
