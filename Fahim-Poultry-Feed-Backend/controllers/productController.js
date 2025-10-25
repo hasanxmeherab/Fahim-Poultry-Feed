@@ -5,21 +5,21 @@ const Transaction = require('../models/transactionModel');
 // @desc   Get all products
 // @route  GET /api/products
 const getProducts = async (req, res, next) => {
-  try {
-    const keyword = req.query.search
-      ? {
-          $or: [
-            { name: { $regex: req.query.search, $options: 'i' } },
-            { sku: { $regex: req.query.search, $options: 'i' } },
-          ],
-        }
-      : {};
+    try {
+        const keyword = req.query.search
+            ? {
+                $or: [
+                    { name: { $regex: req.query.search, $options: 'i' } },
+                    { sku: { $regex: req.query.search, $options: 'i' } },
+                ],
+            }
+            : {};
 
-    const products = await Product.find({ ...keyword }).sort({ createdAt: -1 });
-    res.status(200).json(products);
-  } catch (error) {
-    next(error);
-  }
+        const products = await Product.find({ ...keyword }).sort({ createdAt: -1 });
+        res.status(200).json(products);
+    } catch (error) {
+        next(error); // Pass errors to the central handler
+    }
 };
 
 // @desc   Get a single product
@@ -28,35 +28,43 @@ const getProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
+        // --- MODIFIED ERROR HANDLING ---
+        const error = new Error('Invalid product ID format.');
+        error.statusCode = 400; // Bad Request for invalid ID
+        return next(error);
+        // --- END MODIFICATION ---
     }
 
     try {
         const product = await Product.findById(id);
         if (!product) {
-            return res.status(404).json({error: 'No such product found'});
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('No such product found');
+            error.statusCode = 404; // Not Found
+            return next(error);
+            // --- END MODIFICATION ---
         }
         res.status(200).json(product);
     } catch (error) {
-        next(error);
+        next(error); // Pass other errors to the central handler
     }
 };
 
 // @desc   Create a new product
 // @route  POST /api/products
 const createProduct = async (req, res, next) => {
-
-  try {
-    const { name, sku, price, quantity } = req.body;
-    const product = await Product.create({ name, sku, price, quantity });
-    res.status(201).json(product);
-  } catch (error) {
-    if (error.code === 11000) {
-      error.statusCode = 400;
-      error.message = 'A product with this SKU already exists.';
+    try {
+        const { name, sku, price, quantity } = req.body;
+        const product = await Product.create({ name, sku, price, quantity });
+        res.status(201).json(product);
+    } catch (error) {
+        if (error.code === 11000) { // Handle duplicate SKU specifically
+            error.statusCode = 400; // Bad Request
+            error.message = 'A product with this SKU already exists.';
+        }
+        // Pass the modified error or any other error to the central handler
+        next(error);
     }
-    next(error);
-  }
 };
 
 // @desc   Update a product
@@ -65,17 +73,30 @@ const updateProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
+        // --- MODIFIED ERROR HANDLING ---
+        const error = new Error('Invalid product ID format.');
+        error.statusCode = 400; // Bad Request
+        return next(error);
+        // --- END MODIFICATION ---
     }
 
     try {
         const product = await Product.findByIdAndUpdate(id, { ...req.body }, { new: true });
         if (!product) {
-            return res.status(404).json({error: 'No such product'});
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('No such product found to update');
+            error.statusCode = 404; // Not Found
+            return next(error);
+            // --- END MODIFICATION ---
         }
         res.status(200).json(product);
     } catch (error) {
-        next(error);
+        // Handle potential duplicate key errors during update if SKU is changed
+        if (error.code === 11000) {
+            error.statusCode = 400;
+            error.message = 'Update failed: SKU may already exist.';
+        }
+        next(error); // Pass errors to the central handler
     }
 };
 
@@ -85,17 +106,25 @@ const deleteProduct = async (req, res, next) => {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(404).json({error: 'No such product'});
+        // --- MODIFIED ERROR HANDLING ---
+        const error = new Error('Invalid product ID format.');
+        error.statusCode = 400; // Bad Request
+        return next(error);
+        // --- END MODIFICATION ---
     }
 
     try {
         const product = await Product.findByIdAndDelete(id);
         if (!product) {
-            return res.status(404).json({error: 'No such product'});
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('No such product found to delete');
+            error.statusCode = 404; // Not Found
+            return next(error);
+            // --- END MODIFICATION ---
         }
         res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {
-        next(error);
+        next(error); // Pass errors to the central handler
     }
 };
 
@@ -103,7 +132,15 @@ const deleteProduct = async (req, res, next) => {
 // @route  PATCH /api/products/:id/addstock
 const addStock = async (req, res, next) => {
     const { id } = req.params;
-    const { addQuantity } = req.body;
+    const { addQuantity } = req.body; // Assuming validation ensures this is a positive number
+
+    // --- Added ID Validation ---
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        const error = new Error('Invalid product ID format.');
+        error.statusCode = 400; // Bad Request
+        return next(error);
+    }
+    // --- End Added ID Validation ---
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -112,15 +149,19 @@ const addStock = async (req, res, next) => {
         const updatedProduct = await Product.findByIdAndUpdate(
             id,
             { $inc: { quantity: addQuantity } },
-            { new: true, session }
+            { new: true, session } // 'new: true' returns the updated document
         );
 
         if (!updatedProduct) {
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('No such product found to add stock');
+            error.statusCode = 404; // Not Found
             await session.abortTransaction();
             session.endSession();
-            return res.status(404).json({ error: 'No such product' });
+            return next(error);
+            // --- END MODIFICATION ---
         }
-        
+
         await Transaction.create([{
             type: 'STOCK_ADD',
             product: id,
@@ -135,7 +176,7 @@ const addStock = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        next(error);
+        next(error); // Pass errors to the central handler
     }
 };
 
@@ -143,7 +184,15 @@ const addStock = async (req, res, next) => {
 // @route  PATCH /api/products/:id/removestock
 const removeStock = async (req, res, next) => {
     const { id } = req.params;
-    const { removeQuantity } = req.body;
+    const { removeQuantity } = req.body; // Assuming validation ensures this is a positive number
+
+    // --- Added ID Validation ---
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        const error = new Error('Invalid product ID format.');
+        error.statusCode = 400; // Bad Request
+        return next(error);
+    }
+    // --- End Added ID Validation ---
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -151,27 +200,35 @@ const removeStock = async (req, res, next) => {
     try {
         const product = await Product.findById(id).session(session);
         if (!product) {
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('No such product found to remove stock');
+            error.statusCode = 404; // Not Found
             await session.abortTransaction();
             session.endSession();
-            return res.status(404).json({ error: 'No such product' });
+            return next(error);
+            // --- END MODIFICATION ---
         }
 
         if (product.quantity < removeQuantity) {
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error(`Not enough stock. Only ${product.quantity} available.`);
+            error.statusCode = 400; // Bad Request
             await session.abortTransaction();
             session.endSession();
-            return res.status(400).json({ error: `Not enough stock. Only ${product.quantity} available.` });
+            return next(error);
+            // --- END MODIFICATION ---
         }
-        
+
         product.quantity -= removeQuantity;
         const updatedProduct = await product.save({ session });
-        
+
         await Transaction.create([{
             type: 'STOCK_REMOVE',
             product: id,
             quantityChange: -removeQuantity,
             notes: `Removed ${removeQuantity} unit(s) of ${updatedProduct.name}`
         }], { session });
-        
+
         await session.commitTransaction();
         session.endSession();
 
@@ -179,7 +236,7 @@ const removeStock = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        next(error);
+        next(error); // Pass errors to the central handler
     }
 };
 
@@ -188,23 +245,24 @@ const removeStock = async (req, res, next) => {
 const checkSkuExists = async (req, res, next) => {
     const { sku } = req.query;
     if (!sku) {
+        // No need for error, just return exists: false
         return res.status(200).json({ exists: false });
     }
     try {
         const product = await Product.findOne({ sku: sku.trim() });
         res.status(200).json({ exists: !!product });
     } catch (error) {
-        next(error);
+        next(error); // Pass database errors to the central handler
     }
 };
 
 module.exports = {
-  checkSkuExists,
-  getProducts,
-  getProduct,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  addStock,
-  removeStock,
+    checkSkuExists,
+    getProducts,
+    getProduct,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    addStock,
+    removeStock,
 };

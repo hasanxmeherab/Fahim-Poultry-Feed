@@ -22,10 +22,22 @@ const createSale = async (req, res, next) => {
         for (const item of items) {
             const product = await Product.findById(item.productId).session(session);
             if (!product) {
-                throw new Error(`Product with ID ${item.productId} not found.`);
+                // --- MODIFIED ERROR HANDLING ---
+                const error = new Error(`Product with ID ${item.productId} not found.`);
+                error.statusCode = 404;
+                await session.abortTransaction();
+                session.endSession();
+                return next(error);
+                // --- END MODIFICATION ---
             }
             if (product.quantity < item.quantity) {
-                throw new Error(`Not enough stock for ${product.name}. Only ${product.quantity} available.`);
+                // --- MODIFIED ERROR HANDLING ---
+                const error = new Error(`Not enough stock for ${product.name}. Only ${product.quantity} available.`);
+                error.statusCode = 400; // Bad Request for insufficient stock
+                await session.abortTransaction();
+                session.endSession();
+                return next(error);
+                // --- END MODIFICATION ---
             }
 
             totalAmount += product.price * item.quantity;
@@ -38,7 +50,15 @@ const createSale = async (req, res, next) => {
         let sale;
         if (!isRandomCustomer) {
             const customer = await Customer.findById(customerId).session(session);
-            if (!customer) throw new Error('Customer not found.');
+            if (!customer) {
+                // --- MODIFIED ERROR HANDLING ---
+                const error = new Error('Customer not found.');
+                error.statusCode = 404;
+                await session.abortTransaction();
+                session.endSession();
+                return next(error);
+                // --- END MODIFICATION ---
+            }
 
             const activeBatch = await Batch.findOne({ customer: customerId, status: 'Active' }).session(session);
             const balanceBefore = customer.balance;
@@ -85,10 +105,10 @@ const createSale = async (req, res, next) => {
 
         res.status(201).json(sale);
 
-    } catch (error) {
+    } catch (error) { // Catch any other unexpected errors
         await session.abortTransaction();
         session.endSession();
-        next(error);
+        next(error); // Pass general errors to the main handler
     }
 };
 
@@ -103,7 +123,13 @@ const createWholesaleSale = async (req, res, next) => {
     try {
         const buyer = await WholesaleBuyer.findById(wholesaleBuyerId).session(session);
         if (!buyer) {
-            throw new Error('Wholesale buyer not found.');
+            // --- MODIFIED ERROR HANDLING ---
+            const error = new Error('Wholesale buyer not found.');
+            error.statusCode = 404;
+            await session.abortTransaction();
+            session.endSession();
+            return next(error);
+            // --- END MODIFICATION ---
         }
 
         const totalAmount = items.reduce((acc, item) => acc + (parseFloat(item.price) || 0), 0);
@@ -117,6 +143,7 @@ const createWholesaleSale = async (req, res, next) => {
             await buyer.save({ session });
         }
 
+        // Consider if Sale model is needed, see previous feedback
         await Sale.create([{ 
             wholesaleBuyer: wholesaleBuyerId, 
             items: [], // Simplified for wholesale, customItems are in Transaction
@@ -139,10 +166,10 @@ const createWholesaleSale = async (req, res, next) => {
         
         res.status(201).json(createdTransactions[0]);
 
-    } catch (error) {
+    } catch (error) { // Catch any other unexpected errors
         await session.abortTransaction();
         session.endSession();
-        next(error);
+        next(error); // Pass general errors to the main handler
     }
 };
 
@@ -150,13 +177,14 @@ const createWholesaleSale = async (req, res, next) => {
 // @route  GET /api/sales
 const getSales = async (req, res, next) => {
     try {
+        // Consider removing Sale model if Transaction is sufficient
         const sales = await Sale.find({})
             .sort({ createdAt: -1 })
             .populate('customer', 'name phone')
-            .populate('items.product', 'name sku');
+            .populate('items.product', 'name sku'); // Populate might fail if product deleted
         res.status(200).json(sales);
     } catch (error) {
-        next(error);
+        next(error); // Pass errors to the main handler
     }
 };
 
