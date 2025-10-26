@@ -1,10 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { getTransactions, getTransactionsByBatch, getTransactionsForBuyer } = require('../controllers/transactionController');
+const {
+    getTransactions,
+    getTransactionsByBatch,
+    getTransactionsForBuyer,
+    getTransactionById 
+} = require('../controllers/transactionController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
 
-router.get('/', firebaseAuthMiddleware, getTransactions);
-router.get('/batch/:batchId', firebaseAuthMiddleware, getTransactionsByBatch);
-router.get('/wholesale-buyer/:buyerId', firebaseAuthMiddleware, getTransactionsForBuyer);
+// Apply auth middleware to all transaction routes
+router.use(firebaseAuthMiddleware);
+
+// --- Existing routes ---
+router.get('/', getTransactions); // Get all transactions (paginated, date range)
+router.get('/batch/:batchId', getTransactionsByBatch); // Get transactions for a batch
+router.get('/wholesale-buyer/:buyerId', getTransactionsForBuyer); // Get transactions for a buyer
+
+// --- NEW ROUTE ---
+// Get a single transaction by its ID (for receipts)
+// Ensure parameter name ':id' doesn't conflict if other specific routes use parameters
+router.get('/:id', getTransactionById);
+// --- END NEW ROUTE ---
 
 module.exports = router;

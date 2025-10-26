@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
+import { debounce } from '@mui/material/utils'; // Import debounce
 
 // MUI Imports
 import {
@@ -11,8 +12,9 @@ import {
 
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
-import ConfirmDialog from '../components/ConfirmDialog.jsx'; 
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
+// Reusable modal style (consider moving to a shared file if used often)
 const modalStyle = {
     position: 'absolute',
     top: '50%',
@@ -27,66 +29,109 @@ const modalStyle = {
 
 const CustomerListPage = () => {
     const [customers, setCustomers] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true); // For table loading
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Modal State
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState(null);
-    const [modalType, setModalType] = useState('');
+    const [modalType, setModalType] = useState(''); // 'deposit' or 'withdrawal'
     const [amount, setAmount] = useState('');
+    // --- NEW: State for modal validation errors ---
     const [modalError, setModalError] = useState('');
-    const [isModalLoading, setIsModalLoading] = useState(false);
+    // --- END NEW ---
+    const [isModalLoading, setIsModalLoading] = useState(false); // For modal submission loading
 
-    // State for the delete confirmation dialog
+    // Delete Dialog State
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
-    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false); // For delete action loading
 
-    useEffect(() => {
-        setIsLoading(true);
-        const timerId = setTimeout(() => {
-          api.get(`/customers?search=${searchTerm}`)
-            .then(response => setCustomers(response.data))
-            .catch(err => {
+    // Debounced search function
+    const fetchCustomers = useCallback(
+        debounce(async (term) => {
+            setIsLoading(true); // Indicate loading when fetch starts
+            try {
+                const response = await api.get(`/customers?search=${term}`);
+                setCustomers(response.data);
+            } catch (err) {
                 showErrorToast(err, 'Failed to fetch customers.');
-                setCustomers([]);
-            })
-            .finally(() => setIsLoading(false));
-        }, 500);
-        return () => clearTimeout(timerId);
-    }, [searchTerm]);
+                setCustomers([]); // Clear customers on error
+            } finally {
+                setIsLoading(false); // Stop loading indicator
+            }
+        }, 500), // 500ms delay
+        [] // Empty dependency array means the debounced function is created once
+    );
 
+    // Effect to fetch customers on initial load and when searchTerm changes
+    useEffect(() => {
+        fetchCustomers(searchTerm);
+        // Cleanup function to cancel debounce timer if component unmounts or searchTerm changes quickly
+        return () => fetchCustomers.clear();
+    }, [searchTerm, fetchCustomers]);
+
+    // Open deposit/withdrawal modal
     const openModal = (customer, type) => {
         setCurrentCustomer(customer);
         setModalType(type);
         setModalIsOpen(true);
         setAmount('');
-        setModalError('');
+        setModalError(''); // Clear previous errors when opening
+        setIsModalLoading(false); // Reset loading state
     };
 
-    const closeModal = () => setModalIsOpen(false);
+    // Close any modal/dialog
+    const closeModal = () => {
+        setModalIsOpen(false);
+        setOpenDeleteDialog(false);
+        // Delay clearing data slightly for fade-out animations
+        setTimeout(() => {
+            setCurrentCustomer(null);
+            setCustomerToDelete(null);
+            setAmount('');
+            setModalError('');
+        }, 300);
+    };
 
+    // Handle submission of deposit/withdrawal modal
     const handleModalSubmit = async (e) => {
         e.preventDefault();
+        // --- NEW: Client-side validation ---
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount) || numAmount <= 0) {
             setModalError("Please enter a valid positive amount.");
-            return;
+            return; // Stop if invalid
         }
+        // Specific check for withdrawal
+        if (modalType === 'withdrawal' && currentCustomer && numAmount > currentCustomer.balance) {
+             setModalError(`Cannot withdraw more than the available balance (TK ${currentCustomer.balance.toFixed(2)}).`);
+             return; // Stop if insufficient balance
+        }
+        setModalError(''); // Clear error if validation passes
+        // --- END NEW ---
+
         setIsModalLoading(true);
-        setModalError('');
         const endpoint = `/customers/${currentCustomer._id}/${modalType}`;
         try {
             const response = await api.patch(endpoint, { amount: numAmount });
-            setCustomers(customers.map(c => c._id === response.data._id ? response.data : c));
+            // Update the specific customer in the local state
+            setCustomers(prevCustomers =>
+                prevCustomers.map(c => c._id === response.data._id ? response.data : c)
+            );
             showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
-            closeModal();
+            closeModal(); // Close modal on success
         } catch (err) {
-            showErrorToast(err, `Failed to process ${modalType}.`);
+            // Display error from backend response within the modal or use toast
+            const errMsg = err.response?.data?.error || `Failed to process ${modalType}.`;
+            setModalError(errMsg); // Show error in modal
+            showErrorToast(err, `Failed to process ${modalType}.`); // Also show toast as backup
         } finally {
-            setIsModalLoading(false);
+            setIsModalLoading(false); // Stop loading indicator
         }
     };
- 
+
+    // Functions for delete confirmation
     const handleDeleteClick = (customer) => {
         setCustomerToDelete(customer);
         setOpenDeleteDialog(true);
@@ -97,24 +142,26 @@ const CustomerListPage = () => {
         setIsDeleting(true);
         try {
             await api.delete(`/customers/${customerToDelete._id}`);
-            setCustomers(customers.filter(c => c._id !== customerToDelete._id));
+            // Remove the customer from the local state
+            setCustomers(prevCustomers => prevCustomers.filter(c => c._id !== customerToDelete._id));
             showSuccessToast('Customer deleted successfully!');
         } catch (err) {
             showErrorToast(err, 'Failed to delete customer.');
         } finally {
-            setOpenDeleteDialog(false);
-            setCustomerToDelete(null);
+            closeModal(); // Use the general close function
             setIsDeleting(false);
         }
     };
 
     return (
         <Box sx={{ padding: { xs: 1, sm: 2, md: 3 } }}>
+            {/* Header and Add Button */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h4" component="h1">Customer List</Typography>
+                <Typography variant="h4" component="h1">Customers</Typography>
                 <Button component={Link} to="/add-customer" variant="contained" color="success">+ Add New Customer</Button>
             </Box>
-            
+
+            {/* Search Bar */}
             <TextField
                 fullWidth label="Search by name or phone..." variant="outlined"
                 value={searchTerm}
@@ -122,6 +169,7 @@ const CustomerListPage = () => {
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
+            {/* Customers Table */}
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -134,23 +182,23 @@ const CustomerListPage = () => {
                     </TableHead>
                     <TableBody>
                         {isLoading ? (
-                            <TableSkeleton columns={4} />
+                            <TableSkeleton columns={4} rowsNum={5} /> // Show skeleton loading
                         ) : customers.length > 0 ? (
                             customers.map((customer) => (
-                                <TableRow key={customer._id} hover>
-                                    <TableCell>
+                                <TableRow key={customer._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                    <TableCell component="th" scope="row">
                                         <Typography component={Link} to={`/customers/${customer._id}`} sx={{ fontWeight: 'bold', color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
                                             {customer.name}
                                         </Typography>
                                     </TableCell>
                                     <TableCell>{customer.phone}</TableCell>
-                                    <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'bold' }}>
+                                    <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'medium' }}>
                                         {customer.balance.toFixed(2)}
                                     </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small">Deposit</Button>
-                                        <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
-                                        <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}> {/* Reduced gap */}
+                                        <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small" sx={{ mr: 0.5 }}>Deposit</Button>
+                                        <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning" sx={{ mr: 0.5 }}>Withdraw</Button>
+                                        <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
                                         <Button onClick={() => handleDeleteClick(customer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
@@ -158,7 +206,7 @@ const CustomerListPage = () => {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
-                                    <Typography color="text.secondary">No customers found.</Typography>
+                                    <Typography color="text.secondary">No customers found matching your search.</Typography>
                                 </TableCell>
                             </TableRow>
                         )}
@@ -166,14 +214,39 @@ const CustomerListPage = () => {
                 </Table>
             </TableContainer>
 
-            <Modal open={modalIsOpen} onClose={closeModal} closeAfterTransition>
+            {/* Deposit/Withdrawal Modal */}
+            <Modal
+                open={modalIsOpen}
+                onClose={closeModal}
+                closeAfterTransition
+                aria-labelledby="transaction-modal-title"
+            >
                 <Fade in={modalIsOpen}>
                     <Box sx={modalStyle}>
-                        <Typography variant="h6" component="h2">
+                        <Typography id="transaction-modal-title" variant="h6" component="h2">
                             {modalType === 'deposit' ? 'Make a Deposit' : 'Make a Withdrawal'} for {currentCustomer?.name}
                         </Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
+                            <TextField
+                                fullWidth
+                                autoFocus
+                                margin="dense"
+                                label="Amount (TK)"
+                                type="number"
+                                value={amount}
+                                onChange={(e) => {
+                                    setAmount(e.target.value);
+                                    // --- NEW: Clear error on change ---
+                                    if (modalError) setModalError('');
+                                    // --- END NEW ---
+                                }}
+                                // --- UPDATED: Show validation error ---
+                                error={!!modalError}
+                                helperText={modalError || 'Enter a positive amount.'}
+                                // --- END UPDATE ---
+                                required
+                                inputProps={{ min: "0.01", step: "0.01" }} // Input hints
+                            />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                                 <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
                                 <Button type="submit" variant="contained" disabled={isModalLoading}>
@@ -185,15 +258,16 @@ const CustomerListPage = () => {
                 </Fade>
             </Modal>
 
+            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={openDeleteDialog}
                 title="Confirm Deletion"
-                message={`Are you sure you want to delete the customer "${customerToDelete?.name}"? This action cannot be undone.`}
+                message={`Are you sure you want to delete the customer "${customerToDelete?.name}"? This also removes their transaction history and cannot be undone.`}
                 onConfirm={handleConfirmDelete}
-                onCancel={() => setOpenDeleteDialog(false)}
+                onCancel={closeModal} // Use general close function
                 confirmButtonText="Delete"
                 confirmColor="error"
-                isLoading={isDeleting}
+                isLoading={isDeleting} // Pass loading state
             />
         </Box>
     );

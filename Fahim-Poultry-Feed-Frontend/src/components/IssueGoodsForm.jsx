@@ -1,208 +1,249 @@
-import React, { useState, useEffect } from 'react';
-import api from '../api/api';
-import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton, CircularProgress  } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import { showErrorToast, showSuccessToast } from '../utils/notifications.js'; // Import notification utilities
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '../api/api'; // Needed for product search
+import { debounce } from '@mui/material/utils';
 
-const IssueGoodsForm = ({ customer, onSaleSuccess }) => {
+// MUI Imports
+import { Paper, Typography, Box, Button, TextField, Autocomplete, Checkbox, FormControlLabel, Divider, IconButton, CircularProgress, FormHelperText } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+
+// Import notification utilities (optional, as parent handles mutation toasts)
+// import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
+
+// Component receives mutation trigger function and loading state as props
+const IssueGoodsForm = ({ customer, onIssueGoodsSubmit, isSubmitting }) => {
+
+    // State for the form
     const [saleItems, setSaleItems] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = useState('1'); // Use string for input
+    const [isCashPayment, setIsCashPayment] = useState(false);
+    const [formErrors, setFormErrors] = useState({}); // { product, quantity, items, general }
+
+    // State for Autocomplete
     const [open, setOpen] = useState(false);
     const [options, setOptions] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [isCashPayment, setIsCashPayment] = useState(false);
-    const [error, setError] = useState('');
-    const [inputValue, setInputValue] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+    const [loading, setLoading] = useState(false); // Autocomplete loading
+    const [inputValue, setInputValue] = useState(''); // Autocomplete input text
 
-    // --- NEW: Calculate total amount ---
+    // Calculate total amount dynamically
     const totalAmount = saleItems.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-    useEffect(() => {
-        let active = true;
-        if (!open) { return undefined; }
-        const timer = setTimeout(async () => {
+    // Debounced product search function
+    const fetchProducts = useCallback(
+        debounce(async (input) => {
+            // Avoid fetching when closed unless explicitly opened with empty input
+            if (!input && !open) {
+                setOptions([]);
+                return;
+            }
             setLoading(true);
             try {
-                // Fetch products based on search input (Debounced Search)
-                const response = await api.get(`/products?search=${inputValue}`);
-                if (active) { setOptions(response.data); }
-            } catch (err) { console.error("Failed to search products"); }
-            setLoading(false);
-        }, 500);
-        return () => { active = false; clearTimeout(timer); };
-    }, [inputValue, open]);
+                const response = await api.get(`/products?search=${input}`);
+                const availableProducts = response.data.filter(p => p.quantity > 0);
+                setOptions(availableProducts);
+            } catch (err) {
+                console.error("Failed to search products", err);
+                setOptions([]);
+                setFormErrors(prev => ({ ...prev, product: 'Could not fetch products.' })); // Inform user
+            } finally {
+                setLoading(false);
+            }
+        }, 300),
+        [open] // Recreate if 'open' state changes
+    );
 
+    // Effect to trigger product search
+    useEffect(() => {
+        fetchProducts(inputValue);
+    }, [inputValue, fetchProducts]);
+
+    // --- Validation Functions ---
+    const validateAddItem = () => {
+        const errors = {};
+        const numQuantity = parseInt(quantity);
+
+        if (!selectedProduct) {
+            errors.product = 'Please select a product.';
+        }
+        if (!quantity || isNaN(numQuantity) || !Number.isInteger(numQuantity) || numQuantity <= 0) {
+            errors.quantity = 'Enter positive whole quantity.';
+        } else if (selectedProduct) {
+            const totalStock = selectedProduct.quantity;
+            const existingItem = saleItems.find(item => item._id === selectedProduct._id);
+            const existingCartQty = existingItem ? existingItem.quantity : 0;
+            if (numQuantity + existingCartQty > totalStock) {
+                const availableStock = totalStock - existingCartQty;
+                errors.quantity = `Max ${availableStock} more available.`;
+            }
+        }
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const validateIssueGoods = () => {
+        if (saleItems.length === 0) {
+            setFormErrors({ items: 'Please add at least one item to issue.' });
+            return false;
+        }
+        return true;
+    };
+
+    // --- Event Handlers ---
     const handleAddItem = () => {
-        if (!selectedProduct || quantity <= 0) {
-            setError('Please select a product and enter a valid quantity.');
-            return;
-        }
+        if (!validateAddItem()) return;
 
-        const newQuantity = Number(quantity);
-
-        // Client-side Stock Check (Crucial for UX)
-        const totalStock = selectedProduct.quantity;
+        const newQuantity = parseInt(quantity);
         const existingItem = saleItems.find(item => item._id === selectedProduct._id);
-        const existingCartQty = existingItem ? existingItem.quantity : 0;
-        
-        if (newQuantity + existingCartQty > totalStock) {
-            setError(`Insufficient stock. Only ${totalStock} available.`);
-            return;
-        }
 
         if (existingItem) {
-            // If it exists, map over the array and update the quantity of the matching item
-            setSaleItems(
-                saleItems.map(item =>
-                    item._id === selectedProduct._id
-                        ? { ...item, quantity: item.quantity + newQuantity }
-                        : item
-                )
-            );
+            setSaleItems(saleItems.map(item =>
+                item._id === selectedProduct._id
+                    ? { ...item, quantity: item.quantity + newQuantity }
+                    : item
+            ));
         } else {
-            // If it doesn't exist, add it as a new item to the array
-            setSaleItems([...saleItems, { ...selectedProduct, quantity: newQuantity }]);
+            // Add full product details needed for receipt later
+            setSaleItems([...saleItems, {
+                _id: selectedProduct._id,
+                name: selectedProduct.name,
+                sku: selectedProduct.sku,
+                price: selectedProduct.price, // Price per unit
+                quantity: newQuantity
+            }]);
         }
-
-        // Reset the form fields after adding
+        // Reset form
         setSelectedProduct(null);
         setInputValue('');
-        setQuantity(1);
-        setError('');
+        setOptions([]);
+        setQuantity('1');
+        setFormErrors({}); // Clear errors
     };
 
     const handleRemoveItem = (itemIndexToRemove) => {
         setSaleItems(prevItems => prevItems.filter((_, index) => index !== itemIndexToRemove));
+        if (formErrors.items) setFormErrors(prev => ({ ...prev, items: '' })); // Clear item list error
     };
 
-    const handleIssueGoods = async () => {
-        if (saleItems.length === 0) {
-            setError('Please add at least one item to issue.');
-            return;
-        }
-        setIsLoading(true);
-        // Prepare the payload for the backend
+    const handleIssueGoods = () => {
+        if (!validateIssueGoods()) return;
+        setFormErrors({}); // Clear validation errors before submit
+
         const saleData = {
             customerId: customer._id,
             items: saleItems.map(item => ({ productId: item._id, quantity: item.quantity })),
             isCashPayment: isCashPayment,
-            // isRandomCustomer is implicitly false here as this form targets a specific customer
+            isRandomCustomer: false,
         };
 
-        try {
-            // 1. Post the sale transaction
-            const response = await api.post('/sales', saleData);
-            const newSale = response.data;
-            
-            // 2. SUCCESS NOTIFICATION
-            showSuccessToast('Items issued and transaction recorded!');
+        // Call the mutation function passed from the parent
+        // Pass original saleItems details needed for the receipt
+        onIssueGoodsSubmit(saleData, saleItems);
 
-            // 3. Prepare the data for the receipt page
-            const balanceBefore = customer.balance;
-            // Calculate new balance based on payment type
-            const balanceAfter = isCashPayment ? balanceBefore : balanceBefore - newSale.totalAmount;
-
-            const receiptData = {
-                type: 'sale',
-                customerName: customer.name,
-                items: saleItems, // Use the detailed saleItems from the component's state
-                totalAmount: newSale.totalAmount,
-                balanceBefore: balanceBefore,
-                balanceAfter: balanceAfter,
-                paymentMethod: isCashPayment ? 'Cash' : 'Credit',
-                date: newSale.createdAt,
-            };
-
-            // 4. Save the data and open the receipt in a new tab
-            sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
-            window.open('/receipt', '_blank');
-
-            // 5. Refresh the customer data on the details page and clear the form
-            onSaleSuccess();
-            setSaleItems([]);
-            setError('');
-
-        } catch (err) {
-            // Use showErrorToast for cleaner error display
-            showErrorToast(err, 'Failed to issue items.'); 
-        } finally {
-            setIsLoading(false);
-        }
+        // Reset local form state Optimistically (or wait for parent's onSuccess)
+        // Parent (`CustomerDetailsPage`) handles invalidation and might reset state too
+        setSaleItems([]);
+        setIsCashPayment(false);
+        setQuantity('1');
+        setSelectedProduct(null);
+        setInputValue('');
+        setOptions([]);
     };
 
+    // --- Render Logic ---
     return (
         <Paper sx={{ p: 2 }}>
             <Typography variant="h6" gutterBottom>Issue Items to Customer</Typography>
+            {/* Product Autocomplete */}
             <Autocomplete
                 open={open}
-                onOpen={() => setOpen(true)}
+                onOpen={() => { setOpen(true); if (!inputValue) fetchProducts(''); }} // Fetch on open if empty
                 onClose={() => setOpen(false)}
                 options={options}
                 loading={loading}
-                getOptionLabel={(option) => `${option.name} (In Stock: ${option.quantity})`}
+                getOptionLabel={(option) => `${option.name} (${option.sku}) - Stock: ${option.quantity}`}
                 value={selectedProduct}
-                onChange={(event, newValue) => { 
-                    // Add the selected option to options if it wasn't there (for persistent label on close)
-                    setOptions(newValue ? [newValue, ...options.filter(o => o._id !== newValue._id)] : options); 
-                    setSelectedProduct(newValue); 
+                onChange={(event, newValue) => {
+                    setSelectedProduct(newValue);
+                    if (newValue) setFormErrors(prev => ({ ...prev, product: '' }));
                 }}
                 onInputChange={(event, newInputValue) => { setInputValue(newInputValue); }}
-                isOptionEqualToValue={(option, value) => option._id === value._id}
-                renderInput={(params) => <TextField {...params} label="Search for a Product" />}
+                isOptionEqualToValue={(option, value) => option?._id === value?._id}
+                renderInput={(params) =>
+                    <TextField
+                        {...params}
+                        label="Search Product (Stock > 0)"
+                        error={!!formErrors.product}
+                        helperText={formErrors.product || ''}
+                        InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                                <> {loading ? <CircularProgress color="inherit" size={20} /> : null} {params.InputProps.endAdornment} </>
+                            ),
+                        }}
+                    />}
+                sx={{ mb: 1 }} // Add margin bottom
             />
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                <TextField 
-                    type="number" 
-                    label="Quantity" 
-                    value={quantity} 
-                    onChange={(e) => setQuantity(e.target.value)} 
-                    size="small" 
-                    inputProps={{ min: 1 }}
+            {/* Quantity Input and Add Button */}
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mt: 2 }}>
+                <TextField
+                    type="number" label="Quantity" value={quantity}
+                    onChange={(e) => {
+                        setQuantity(e.target.value.replace(/[^0-9]/g, ''));
+                        if (formErrors.quantity) setFormErrors(prev => ({ ...prev, quantity: '' }));
+                    }}
+                    size="small" inputProps={{ min: 1, step: 1 }} sx={{ width: 120 }}
+                    error={!!formErrors.quantity} helperText={formErrors.quantity || ''}
+                    disabled={isSubmitting} // Disable when submitting
                 />
-                <Button onClick={handleAddItem} variant="contained">
+                <Button onClick={handleAddItem} variant="contained" disabled={!selectedProduct || loading || isSubmitting}>
                     Add Item
                 </Button>
             </Box>
-            
-            {/* --- Item list and total display --- */}
+
+            {/* Item list error */}
+            {formErrors.items && <FormHelperText error sx={{ mt: 1 }}>{formErrors.items}</FormHelperText>}
+
+            {/* Sale Items List */}
             {saleItems.length > 0 && (
                 <Box sx={{ mt: 3 }}>
                     <Typography variant="subtitle1">Items to Issue:</Typography>
-                    <Box sx={{ my: 1 }}>
+                    <Box sx={{ my: 1, maxHeight: '200px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '4px' }}>
                         {saleItems.map((item, index) => (
-                            <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                <Typography variant="body2">{item.quantity} x {item.name} @ {item.price.toFixed(2)}</Typography>
-                                <Typography variant="body2">TK {(item.price * item.quantity).toFixed(2)}</Typography>
-                                <IconButton onClick={() => handleRemoveItem(index)} size="small" aria-label="remove item">
-                                        <CloseIcon fontSize="small" />
+                            <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, borderBottom: index !== saleItems.length - 1 ? '1px solid #eee' : 'none' }}>
+                                <Typography variant="body2">{item.quantity} x {item.name} @ {item.price?.toFixed(2) ?? 'N/A'}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="body2" sx={{ minWidth: '70px', textAlign: 'right', fontWeight: 'medium' }}>TK {(item.price * item.quantity).toFixed(2)}</Typography>
+                                    <IconButton onClick={() => handleRemoveItem(index)} size="small" aria-label="remove item" color="error" disabled={isSubmitting}>
+                                        <CloseIcon fontSize="inherit" />
                                     </IconButton>
+                                </Box>
                             </Box>
                         ))}
                     </Box>
-                    <Divider sx={{ my: 1 }} />
+                    <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
                     <Typography variant="h6" sx={{ textAlign: 'right', fontWeight: 'bold' }}>
                         Final Total: TK {totalAmount.toFixed(2)}
                     </Typography>
                 </Box>
             )}
 
-            {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+            {/* General submission error */}
+            {formErrors.general && <Typography color="error" sx={{ mt: 2 }}>{formErrors.general}</Typography>}
+
+            {/* Cash Payment Checkbox */}
             <FormControlLabel
-                control={<Checkbox checked={isCashPayment} onChange={(e) => setIsCashPayment(e.target.checked)} />}
+                control={<Checkbox checked={isCashPayment} onChange={(e) => setIsCashPayment(e.target.checked)} disabled={isSubmitting} />}
                 label="Paid in Cash 💵"
-                sx={{ mt: 2 }}
+                sx={{ mt: 2, display: 'block' }}
             />
-             <Button 
-              onClick={handleIssueGoods} 
-              variant="contained" 
-              color="success" 
-              fullWidth 
-              sx={{ mt: 1 }} 
-              disabled={isLoading || saleItems.length === 0}
+            {/* Submit Button */}
+            <Button
+                onClick={handleIssueGoods}
+                variant="contained" color="success" fullWidth
+                sx={{ mt: 1, py: 1.2 }}
+                disabled={isSubmitting || saleItems.length === 0} // Use prop for loading state
             >
-              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm and Issue Items'}
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Confirm and Issue Items'}
             </Button>
         </Paper>
     );

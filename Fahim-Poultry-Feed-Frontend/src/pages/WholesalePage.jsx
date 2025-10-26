@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import api from '../api/api';
 import { Link } from 'react-router-dom';
+import { debounce } from '@mui/material/utils'; // Import debounce
 
 // MUI Imports
 import {
@@ -13,6 +14,7 @@ import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
+// Reusable modal style
 const modalStyle = {
     position: 'absolute',
     top: '50%',
@@ -28,42 +30,59 @@ const modalStyle = {
 const WholesalePage = () => {
     const [buyers, setBuyers] = useState([]);
     const [products, setProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true); // Combined loading state
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Modal State (Deposit/Withdrawal)
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentBuyer, setCurrentBuyer] = useState(null);
-    const [modalType, setModalType] = useState('');
+    const [modalType, setModalType] = useState(''); // 'deposit' or 'withdrawal'
     const [amount, setAmount] = useState('');
+    // --- NEW: Modal validation error state ---
     const [modalError, setModalError] = useState('');
-    const [isModalLoading, setIsModalLoading] = useState(false);
+    // --- END NEW ---
+    const [isModalLoading, setIsModalLoading] = useState(false); // Modal submission loading
 
-    // --- State for Buyer Deletion ---
+    // State for Buyer Deletion
     const [openBuyerDialog, setOpenBuyerDialog] = useState(false);
     const [buyerToDelete, setBuyerToDelete] = useState(null);
     const [isDeletingBuyer, setIsDeletingBuyer] = useState(false);
 
-    // --- State for Product Deletion ---
+    // State for Product Deletion
     const [openProductDialog, setOpenProductDialog] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
     const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
+
+    // Debounced fetch function
+    const fetchData = useCallback(
+        debounce(async (term) => {
+            setIsLoading(true);
+            try {
+                const fetchBuyers = api.get(`/wholesale-buyers?search=${term}`);
+                const fetchProducts = api.get('/wholesale-products'); // Products don't need search term here
+                const [buyersRes, productsRes] = await Promise.all([fetchBuyers, fetchProducts]);
+                setBuyers(buyersRes.data);
+                setProducts(productsRes.data);
+            } catch (err) {
+                showErrorToast(err, 'Failed to fetch wholesale data.');
+                setBuyers([]); // Clear data on error
+                setProducts([]);
+            } finally {
+                setIsLoading(false);
+            }
+        }, 500),
+        [] // Empty dependency array
+    );
+
+    // Effect to fetch data
     useEffect(() => {
-        setIsLoading(true);
-        const timerId = setTimeout(() => {
-            const fetchBuyers = api.get(`/wholesale-buyers?search=${searchTerm}`);
-            const fetchProducts = api.get('/wholesale-products');
+        fetchData(searchTerm);
+        return () => fetchData.clear();
+    }, [searchTerm, fetchData]);
 
-            Promise.all([fetchBuyers, fetchProducts])
-                .then(([buyersRes, productsRes]) => {
-                    setBuyers(buyersRes.data);
-                    setProducts(productsRes.data);
-                })
-                .catch(err => showErrorToast(err, 'Failed to fetch wholesale data.'))
-                .finally(() => setIsLoading(false));
-        }, 500);
-        return () => clearTimeout(timerId);
-    }, [searchTerm]);
 
+    // Buyer Delete functions
     const handleBuyerDeleteClick = (buyer) => {
         setBuyerToDelete(buyer);
         setOpenBuyerDialog(true);
@@ -74,17 +93,17 @@ const WholesalePage = () => {
         setIsDeletingBuyer(true);
         try {
             await api.delete(`/wholesale-buyers/${buyerToDelete._id}`);
-            setBuyers(buyers.filter(b => b._id !== buyerToDelete._id));
+            setBuyers(prev => prev.filter(b => b._id !== buyerToDelete._id));
             showSuccessToast('Buyer deleted successfully!');
         } catch (err) {
             showErrorToast(err, 'Failed to delete buyer.');
         } finally {
-            setOpenBuyerDialog(false);
-            setBuyerToDelete(null);
+            closeAllDialogs(); // Use generic close function
             setIsDeletingBuyer(false);
         }
     };
-    
+
+    // Product Delete functions
     const handleProductDeleteClick = (product) => {
         setProductToDelete(product);
         setOpenProductDialog(true);
@@ -95,45 +114,68 @@ const WholesalePage = () => {
         setIsDeletingProduct(true);
         try {
             await api.delete(`/wholesale-products/${productToDelete._id}`);
-            setProducts(products.filter(p => p._id !== productToDelete._id));
+            setProducts(prev => prev.filter(p => p._id !== productToDelete._id));
             showSuccessToast('Product deleted successfully!');
         } catch (err) {
             showErrorToast(err, 'Failed to delete product.');
         } finally {
-            setOpenProductDialog(false);
-            setProductToDelete(null);
+            closeAllDialogs(); // Use generic close function
             setIsDeletingProduct(false);
         }
     };
-    
-    const openModal = (buyer, type) => {
+
+    // Open Deposit/Withdrawal Modal
+    const openTransactionModal = (buyer, type) => {
         setCurrentBuyer(buyer);
         setModalType(type);
-        setModalIsOpen(true);
-        setModalError('');
         setAmount('');
+        setModalError(''); // Clear errors on open
+        setIsModalLoading(false);
+        setModalIsOpen(true);
     };
 
-    const closeModal = () => setModalIsOpen(false);
+    // Close ALL modals/dialogs
+    const closeAllDialogs = () => {
+        setModalIsOpen(false);
+        setOpenBuyerDialog(false);
+        setOpenProductDialog(false);
+         // Delay clearing data for animations
+        setTimeout(() => {
+             setCurrentBuyer(null);
+             setBuyerToDelete(null);
+             setProductToDelete(null);
+             setAmount('');
+             setModalError('');
+         }, 300);
+    };
 
+    // Handle Deposit/Withdrawal Submit
     const handleModalSubmit = async (e) => {
         e.preventDefault();
+        // --- NEW: Client-side validation ---
         const numAmount = parseFloat(amount);
         if (isNaN(numAmount) || numAmount <= 0) {
-            setModalError("Please enter a valid amount.");
+            setModalError("Please enter a valid positive amount.");
             return;
         }
+        // No balance check needed here as per model logic (can have negative balance)
+        setModalError(''); // Clear error if validation passes
+        // --- END NEW ---
+
         setIsModalLoading(true);
         const endpoint = `/wholesale-buyers/${currentBuyer._id}/${modalType}`;
         try {
             const response = await api.patch(endpoint, { amount: numAmount });
-            setBuyers(buyers.map(buyer => 
-                buyer._id === response.data._id ? response.data : buyer
-            ));
+            // Update the buyer in the local state
+            setBuyers(prevBuyers =>
+                prevBuyers.map(b => b._id === response.data._id ? response.data : b)
+            );
             showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
-            closeModal();
-        } catch (err) { 
-            showErrorToast(err, 'Transaction failed.');
+            closeAllDialogs(); // Close modal on success
+        } catch (err) {
+            const errMsg = err.response?.data?.message || err.response?.data?.error || 'Transaction failed.';
+            setModalError(errMsg); // Show error in modal
+            showErrorToast(err, 'Transaction failed.'); // Show toast
         } finally {
             setIsModalLoading(false);
         }
@@ -150,14 +192,14 @@ const WholesalePage = () => {
             </Box>
             <TextField
                 fullWidth
-                label="Search by name, business, or phone..."
+                label="Search Buyers by name, business, or phone..."
                 variant="outlined"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 sx={{ mb: 3, backgroundColor: 'white' }}
             />
 
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} sx={{ mb: 5 }}>
                 <Table>
                     <TableHead>
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
@@ -165,29 +207,29 @@ const WholesalePage = () => {
                             <TableCell>Business Name</TableCell>
                             <TableCell>Phone</TableCell>
                             <TableCell>Balance (TK)</TableCell>
-                            <TableCell>Actions</TableCell>
+                            <TableCell sx={{ width: '35%' }}>Actions</TableCell> {/* Adjusted width */}
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {isLoading ? (
-                            <TableSkeleton columns={5} />
+                            <TableSkeleton columns={5} rowsNum={3} />
                         ) : buyers.length > 0 ? (
                             buyers.map((buyer) => (
-                                <TableRow key={buyer._id} hover>
+                                <TableRow key={buyer._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                     <TableCell>
-                                        <Typography component={Link} to={`/wholesale-buyers/${buyer._id}`} sx={{ fontWeight: 'bold', color: '#2C3E50', textDecoration: 'none' }}>
+                                        <Typography component={Link} to={`/wholesale-buyers/${buyer._id}`} sx={{ fontWeight: 'bold', color: '#2C3E50', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
                                             {buyer.name}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>{buyer.businessName}</TableCell>
+                                    <TableCell>{buyer.businessName || 'N/A'}</TableCell>
                                     <TableCell>{buyer.phone}</TableCell>
-                                    <TableCell sx={{ color: buyer.balance < 0 ? 'error.main' : 'inherit' }}>
+                                    <TableCell sx={{ color: buyer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'medium' }}>
                                         {buyer.balance.toFixed(2)}
                                     </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                        <Button onClick={() => openModal(buyer, 'deposit')} variant="contained" size="small">Deposit</Button>
-                                        <Button onClick={() => openModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning">Withdraw</Button>
-                                        <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}> {/* Reduced gap */}
+                                        <Button onClick={() => openTransactionModal(buyer, 'deposit')} variant="contained" size="small" sx={{ mr: 0.5 }}>Deposit</Button>
+                                        <Button onClick={() => openTransactionModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning" sx={{ mr: 0.5 }}>Withdraw</Button>
+                                        <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
                                         <Button onClick={() => handleBuyerDeleteClick(buyer)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
@@ -195,9 +237,7 @@ const WholesalePage = () => {
                         ) : (
                              <TableRow>
                                 <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                                    <Typography color="text.secondary">
-                                        No wholesale buyers found.
-                                    </Typography>
+                                    <Typography color="text.secondary">No wholesale buyers found.</Typography>
                                 </TableCell>
                             </TableRow>
                         )}
@@ -206,7 +246,7 @@ const WholesalePage = () => {
             </TableContainer>
 
             {/* --- Products Section --- */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 5, mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h4" component="h1">Wholesale Products</Typography>
                 <Button component={Link} to="/add-wholesale-product" variant="contained" color="success">
                     + Add New Product
@@ -217,18 +257,18 @@ const WholesalePage = () => {
                     <TableHead>
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
                             <TableCell>Product Name</TableCell>
-                            <TableCell>Actions</TableCell>
+                            <TableCell sx={{ width: '25%' }}>Actions</TableCell> {/* Adjusted width */}
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? (
-                            <TableSkeleton columns={2} />
+                        {isLoading ? ( // Use the same loading state for simplicity
+                            <TableSkeleton columns={2} rowsNum={3} />
                         ) : products.length > 0 ? (
                             products.map((product) => (
-                                <TableRow key={product._id} hover>
+                                <TableRow key={product._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                     <TableCell>{product.name}</TableCell>
-                                    <TableCell sx={{ display: 'flex', gap: 1 }}>
-                                        <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info">Edit</Button>
+                                    <TableCell sx={{ display: 'flex', gap: 0.5 }}> {/* Reduced gap */}
+                                        <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
                                         <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
                                 </TableRow>
@@ -236,9 +276,7 @@ const WholesalePage = () => {
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={2} align="center" sx={{ py: 4 }}>
-                                    <Typography color="text.secondary">
-                                        No wholesale products found.
-                                    </Typography>
+                                    <Typography color="text.secondary">No wholesale products added yet.</Typography>
                                 </TableCell>
                             </TableRow>
                         )}
@@ -246,16 +284,36 @@ const WholesalePage = () => {
                 </Table>
             </TableContainer>
 
-            <Modal open={modalIsOpen} onClose={closeModal} closeAfterTransition>
+            {/* Deposit/Withdrawal Modal for Wholesale Buyer */}
+            <Modal open={modalIsOpen} onClose={closeAllDialogs} closeAfterTransition>
                 <Fade in={modalIsOpen}>
                     <Box sx={modalStyle}>
                         <Typography variant="h6" component="h2">
-                            {modalType === 'deposit' ? 'Make a Deposit' : 'Make a Withdrawal'} for {currentBuyer?.name}
+                            {modalType === 'deposit' ? 'Make Deposit' : 'Make Withdrawal'} for {currentBuyer?.name}
                         </Typography>
                         <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField fullWidth autoFocus margin="dense" label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} error={!!modalError} helperText={modalError} required />
+                            <TextField
+                                fullWidth
+                                autoFocus
+                                margin="dense"
+                                label="Amount (TK)"
+                                type="number"
+                                value={amount}
+                                onChange={(e) => {
+                                    setAmount(e.target.value);
+                                    // --- NEW: Clear error on change ---
+                                    if (modalError) setModalError('');
+                                    // --- END NEW ---
+                                }}
+                                // --- UPDATED: Show validation error ---
+                                error={!!modalError}
+                                helperText={modalError || 'Enter a positive amount.'}
+                                // --- END UPDATE ---
+                                required
+                                inputProps={{ min: "0.01", step: "0.01" }}
+                            />
                             <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
+                                <Button onClick={closeAllDialogs} disabled={isModalLoading}>Cancel</Button>
                                 <Button type="submit" variant="contained" disabled={isModalLoading}>
                                     {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
                                 </Button>
@@ -265,23 +323,25 @@ const WholesalePage = () => {
                 </Fade>
             </Modal>
 
+            {/* Buyer Delete Confirmation */}
             <ConfirmDialog
                 isOpen={openBuyerDialog}
                 title="Confirm Buyer Deletion"
                 message={`Are you sure you want to delete the buyer "${buyerToDelete?.name}"? This action cannot be undone.`}
                 onConfirm={handleConfirmBuyerDelete}
-                onCancel={() => setOpenBuyerDialog(false)}
+                onCancel={closeAllDialogs}
                 confirmButtonText="Delete"
                 confirmColor="error"
                 isLoading={isDeletingBuyer}
             />
 
+             {/* Product Delete Confirmation */}
             <ConfirmDialog
                 isOpen={openProductDialog}
                 title="Confirm Product Deletion"
                 message={`Are you sure you want to delete the product "${productToDelete?.name}"? This action cannot be undone.`}
                 onConfirm={handleConfirmProductDelete}
-                onCancel={() => setOpenProductDialog(false)}
+                onCancel={closeAllDialogs}
                 confirmButtonText="Delete"
                 confirmColor="error"
                 isLoading={isDeletingProduct}

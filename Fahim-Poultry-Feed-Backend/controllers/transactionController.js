@@ -23,6 +23,45 @@ function getDayBoundsUTC(dateString, timezoneOffset = '+06:00') {
 }
 
 
+// --- NEW FUNCTION ---
+// @desc   Get a single transaction by ID, populated for receipt generation
+// @route  GET /api/transactions/:id
+const getTransactionById = async (req, res, next) => {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        const error = new Error('Invalid Transaction ID format.');
+        error.statusCode = 400; // Bad Request for invalid ID format
+        return next(error);
+    }
+
+    try {
+        const transaction = await Transaction.findById(id)
+            // Populate all potentially needed fields for various receipt types
+            .populate('customer', 'name phone balance') // Customer details for Sale, Deposit, Withdrawal, BuyBack
+            .populate('wholesaleBuyer', 'name businessName phone balance') // Buyer details for WholesaleSale, Deposit, Withdrawal
+            .populate('items.product', 'name sku') // Product details within items array for Sale
+            .populate('batch', 'batchNumber'); // Batch number if needed
+
+        if (!transaction) {
+            const error = new Error('Transaction not found.');
+            error.statusCode = 404; // Not Found
+            return next(error);
+        }
+
+        // Return the fully populated transaction
+        res.status(200).json(transaction);
+    } catch (error) {
+        // Log unexpected errors
+        console.error("Error fetching transaction by ID:", error);
+        next(error); // Pass errors to the central handler
+    }
+};
+// --- END NEW FUNCTION ---
+
+
+// @desc   Get all transactions with optional date range filter
+// @route  GET /api/transactions
 const getTransactions = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15; // Allow overriding limit via query
@@ -31,14 +70,14 @@ const getTransactions = async (req, res, next) => {
         const filter = {};
         const { startDate, endDate } = req.query;
 
-        // Date Range Filter (Already correctly using UTC start/end assumptions)
+        // Date Range Filter (Using UTC start/end assumptions)
         if (startDate && endDate) {
             const start = new Date(`${startDate}T00:00:00.000Z`);
             const end = new Date(`${endDate}T23:59:59.999Z`);
              if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
                 filter.createdAt = { $gte: start, $lte: end };
             } else {
-                 console.warn("Invalid startDate or endDate received:", startDate, endDate);
+                 console.warn("Invalid startDate or endDate received in getTransactions:", startDate, endDate);
                  // Optionally return a 400 error here if dates are invalid
             }
         }
@@ -63,6 +102,8 @@ const getTransactions = async (req, res, next) => {
     }
 };
 
+// @desc   Get transactions for a specific batch with optional date filter
+// @route  GET /api/transactions/batch/:batchId
 const getTransactionsByBatch = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15;
@@ -77,11 +118,10 @@ const getTransactionsByBatch = async (req, res, next) => {
 
         const filter = { batch: new mongoose.Types.ObjectId(batchId) };
 
-        // --- IMPROVED Single Date Filter ---
+        // Single Date Filter (Interpreted in local time, e.g., UTC+6)
         if (req.query.date) {
-            const dateStr = req.query.date; // e.g., "2025-10-26"
-            // Get UTC bounds for the day in Bangladesh time (UTC+6)
-            const bounds = getDayBoundsUTC(dateStr, '+06:00');
+            const dateStr = req.query.date;
+            const bounds = getDayBoundsUTC(dateStr, '+06:00'); // Use helper for local time interpretation
 
             if (bounds) {
                 filter.createdAt = { $gte: bounds.startUTC, $lte: bounds.endUTC };
@@ -90,7 +130,6 @@ const getTransactionsByBatch = async (req, res, next) => {
                  // Optionally return a 400 error
             }
         }
-        // --- END IMPROVEMENT ---
 
         const count = await Transaction.countDocuments(filter);
         const transactions = await Transaction.find(filter)
@@ -113,9 +152,7 @@ const getTransactionsByBatch = async (req, res, next) => {
                     productSummary[name] = (productSummary[name] || 0) + (item.quantity || 0);
                 });
             }
-             if (t.type === 'DISCOUNT') { // Assuming discounts are positive values in 'amount'
-                 // Discounts reduce the net total owed by customer, handled in BatchInfoCard
-            }
+             // Discounts handled separately in BatchInfoCard using batch data
             if (t.type === 'BUY_BACK') {
                 totalBoughtInBatch += t.amount || 0;
                 totalChickensBought += t.buyBackQuantity || 0;
@@ -123,13 +160,12 @@ const getTransactionsByBatch = async (req, res, next) => {
         });
         const productSummaryArray = Object.keys(productSummary).map(name => ({ name, quantity: productSummary[name] })).sort((a, b) => b.quantity - a.quantity);
 
-
         res.status(200).json({
              transactions,
              page,
              totalPages: Math.ceil(count / limit),
-             totalSoldInBatch, // Sum of credit sales
-             totalBoughtInBatch, // Sum of buy backs
+             totalSoldInBatch,
+             totalBoughtInBatch,
              totalChickensBought,
              productSummary: productSummaryArray
          });
@@ -139,6 +175,8 @@ const getTransactionsByBatch = async (req, res, next) => {
     }
 };
 
+// @desc   Get transactions for a specific wholesale buyer with optional date filter
+// @route  GET /api/transactions/wholesale-buyer/:buyerId
 const getTransactionsForBuyer = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15;
@@ -153,11 +191,10 @@ const getTransactionsForBuyer = async (req, res, next) => {
 
         const filter = { wholesaleBuyer: new mongoose.Types.ObjectId(buyerId) };
 
-        // --- IMPROVED Single Date Filter ---
+        // Single Date Filter (Interpreted in local time, e.g., UTC+6)
         if (req.query.date) {
-            const dateStr = req.query.date; // e.g., "2025-10-26"
-            // Get UTC bounds for the day in Bangladesh time (UTC+6)
-            const bounds = getDayBoundsUTC(dateStr, '+06:00');
+            const dateStr = req.query.date;
+            const bounds = getDayBoundsUTC(dateStr, '+06:00'); // Use helper
 
              if (bounds) {
                 filter.createdAt = { $gte: bounds.startUTC, $lte: bounds.endUTC };
@@ -166,15 +203,13 @@ const getTransactionsForBuyer = async (req, res, next) => {
                  // Optionally return a 400 error
             }
         }
-        // --- END IMPROVEMENT ---
 
         const count = await Transaction.countDocuments(filter);
         const transactions = await Transaction.find(filter)
             .sort({ createdAt: -1 })
             .limit(limit)
             .skip(limit * (page - 1));
-            // Consider populating buyer details if needed, though maybe redundant on this page
-            // .populate('wholesaleBuyer', 'name businessName');
+            // No populate needed here usually as it's for a specific buyer's history
 
         res.status(200).json({
             transactions,
@@ -187,6 +222,7 @@ const getTransactionsForBuyer = async (req, res, next) => {
 };
 
 module.exports = {
+    getTransactionById, 
     getTransactions,
     getTransactionsByBatch,
     getTransactionsForBuyer

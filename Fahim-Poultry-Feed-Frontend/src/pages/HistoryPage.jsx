@@ -1,177 +1,192 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api';
+import { debounce } from '@mui/material/utils'; // Import debounce
+
+// React Query
+import { useQuery } from '@tanstack/react-query';
 
 // MUI Imports
-import { 
-    Box, Button, Typography, Table, TableBody, 
-    TableCell, TableContainer, TableHead, TableRow, 
-    Paper, CircularProgress, Pagination, TextField 
+import {
+    Box, Button, Typography, Table, TableBody,
+    TableCell, TableContainer, TableHead, TableRow,
+    Paper, CircularProgress, Pagination, TextField
 } from '@mui/material';
+import TableSkeleton from '../components/TableSkeleton.jsx'; // Import Skeleton
+import { showErrorToast } from '../utils/notifications.js'; // For error reporting
+
+// API Fetch Function
+const fetchAllTransactions = async (page, startDate, endDate) => {
+    let url = `/transactions?page=${page}&limit=20`; // Use a limit, e.g., 20
+    if (startDate && endDate) {
+        url += `&startDate=${startDate}&endDate=${endDate}`;
+    }
+    console.log(`Fetching global transactions: ${url}`);
+    const { data } = await api.get(url);
+    return {
+        transactions: data.transactions || [],
+        totalPages: data.totalPages || 0
+    };
+};
 
 const HistoryPage = () => {
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+    // Local UI State
+    const [page, setPage] = useState(1);
+    const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+    // State to trigger refetch when filters change via button click
+    const [activeFilters, setActiveFilters] = useState({ startDate: '', endDate: '' });
 
-  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
-  const [searchTrigger, setSearchTrigger] = useState(0);
+    // --- React Query Data Fetching ---
+    const {
+        data: transactionData,
+        isLoading,
+        isFetching, // Indicates background refetching
+        error,
+        isError
+    } = useQuery({
+        // Query key includes active filters and page
+        queryKey: ['transactions', activeFilters.startDate, activeFilters.endDate, page],
+        queryFn: () => fetchAllTransactions(page, activeFilters.startDate, activeFilters.endDate),
+        placeholderData: (prevData) => prevData, // Keep old data while refetching
+        staleTime: 1000 * 30, // 30 seconds
+        retry: 1,
+    });
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setIsLoading(true);
-      try {
-        let url = `/transactions?page=${page}`;
-        if (dateRange.startDate && dateRange.endDate) {
-            url += `&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
-        }
-        const response = await api.get(url);
-        setTransactions(response.data.transactions);
-        setTotalPages(response.data.totalPages);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch transaction history.');
-      } finally {
-        setIsLoading(false);
-      }
+    // --- Derived State ---
+    const transactions = transactionData?.transactions || [];
+    const totalPages = transactionData?.totalPages || 0;
+
+    // Handle date input changes
+    const handleDateChange = (e) => {
+        setDateRange({ ...dateRange, [e.target.name]: e.target.value });
     };
-    fetchTransactions();
-  }, [page, searchTrigger]);
 
-  const handleDateChange = (e) => {
-    setDateRange({ ...dateRange, [e.target.name]: e.target.value });
-  };
+    // Apply filters and trigger refetch
+    const handleApplyFilter = () => {
+        setPage(1); // Reset to page 1 when applying filters
+        setActiveFilters({ ...dateRange }); // Update active filters to trigger query refetch
+    };
 
-  const handleSearch = () => {
-    setPage(1);
-    setSearchTrigger(prev => prev + 1);
-  };
+    // Clear filters and trigger refetch
+    const handleClearFilter = () => {
+        setPage(1);
+        setDateRange({ startDate: '', endDate: '' });
+        setActiveFilters({ startDate: '', endDate: '' }); // Clear active filters
+    };
 
-  const handleReset = () => {
-    setDateRange({ startDate: '', endDate: '' });
-    setPage(1);
-    setSearchTrigger(prev => prev + 1);
-  };
+    // --- UPDATED: handleViewReceipt uses URL ---
+    const handleViewReceipt = (transaction) => {
+        // Check which fields are available to determine customer/buyer
+        const customerName = transaction.customer?.name || transaction.wholesaleBuyer?.name || transaction.randomCustomerName || 'N/A';
+        const type = transaction.type;
 
-  const handleViewReceipt = (transaction) => {
-    let receiptData = {};
-    if (transaction.type === 'SALE') {
-        const isRandomSale = !transaction.customer;
-        receiptData = {
-            type: 'sale', 
-            customerName: transaction.customer?.name || transaction.randomCustomerName || 'Random Customer', 
-            items: transaction.items,
-            totalAmount: transaction.amount, 
-            balanceBefore: isRandomSale ? null : transaction.balanceBefore,
-            balanceAfter: isRandomSale ? null : transaction.balanceAfter, 
-            date: transaction.createdAt,
-            paymentMethod: transaction.paymentMethod
-        };
-    } else if (transaction.type === 'DEPOSIT' || transaction.type === 'WITHDRAWAL') {
-        receiptData = {
-            type: 'deposit', 
-            customerName: transaction.customer?.name || transaction.wholesaleBuyer?.name, 
-            depositAmount: transaction.amount,
-            balanceBefore: transaction.balanceBefore, 
-            balanceAfter: transaction.balanceAfter,
-            date: transaction.createdAt,
-        };
-    } else if (transaction.type === 'BUY_BACK') {
-        receiptData = {
-            type: 'buy_back',
-            customerName: transaction.customer?.name,
-            date: transaction.createdAt,
-            buyBackQuantity: transaction.buyBackQuantity,
-            buyBackWeight: transaction.buyBackWeight,
-            buyBackPricePerKg: transaction.buyBackPricePerKg,
-            totalAmount: transaction.amount,
-            balanceBefore: transaction.balanceBefore,
-            referenceName: transaction.referenceName,
-            balanceAfter: transaction.balanceAfter,
-        };
-    } else if (transaction.type === 'WHOLESALE_SALE') {
-        receiptData = {
-            type: 'wholesale_sale',
-            customerName: transaction.wholesaleBuyer?.name,
-            items: transaction.customItems,
-            totalAmount: transaction.amount,
-            balanceBefore: transaction.balanceBefore,
-            balanceAfter: transaction.balanceAfter,
-            date: transaction.createdAt,
-        };
-    } else { 
-        return; 
-    }
-    sessionStorage.setItem('receiptData', JSON.stringify(receiptData));
-    window.open('/receipt', '_blank');
-  };
-
-  const renderDetail = (t) => {
-    if (t.type === 'SALE' && !t.customer) {
-        return `Cash sale to ${t.randomCustomerName || 'a random customer'}`;
-    }
-    if (t.type === 'SALE' && t.customer) {
-        if (t.paymentMethod === 'Cash') {
-            return `${t.notes} (Paid in Cash)`;
+        // Check if receipt generation is applicable and ID exists
+        if (['SALE', 'DEPOSIT', 'WITHDRAWAL', 'BUY_BACK', 'WHOLESALE_SALE'].includes(type) && transaction._id) {
+            console.log(`HistoryPage: Opening receipt for transaction ID: ${transaction._id}`);
+            window.open(`/receipt/${transaction._id}`, '_blank');
+        } else if (!transaction._id) {
+             console.error("HistoryPage: Cannot view receipt - Transaction ID missing.");
+             showErrorToast({ message: "Cannot generate receipt: Transaction ID missing." });
+        } else {
+            console.log(`HistoryPage: No receipt applicable for type: ${type}`);
+            // Optionally show a message that no receipt is available for this type
+            // showInfoToast(`No receipt available for transaction type: ${type}`);
         }
-    }
-    return t.notes;
-  };
+    };
+    // --- END UPDATE ---
 
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>Transaction History</Typography>
-      
-      <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <TextField name="startDate" label="Start Date" type="date" value={dateRange.startDate} onChange={handleDateChange} InputLabelProps={{ shrink: true }} size="small" />
-        <TextField name="endDate" label="End Date" type="date" value={dateRange.endDate} onChange={handleDateChange} InputLabelProps={{ shrink: true }} size="small" />
-        <Button variant="contained" onClick={handleSearch}>Search</Button>
-        <Button variant="outlined" onClick={handleReset}>Reset</Button>
-      </Paper>
-      
-      {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>
-      ) : error ? (
-        <Typography color="error">{error}</Typography>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
-                <TableCell>Date</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Details</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {transactions.map((t) => (
-                <TableRow key={t._id} hover>
-                  <TableCell>{new Date(t.createdAt).toLocaleString()}</TableCell>
-                  <TableCell>{t.type}</TableCell>
-                  <TableCell>{renderDetail(t)}</TableCell>
-                  <TableCell>
-                    {['SALE', 'DEPOSIT', 'WITHDRAWAL', 'BUY_BACK', 'WHOLESALE_SALE'].includes(t.type) && (
-                        <Button onClick={() => handleViewReceipt(t)} size="small" variant="outlined">
-                            View Receipt
-                        </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+    // Render helper for transaction details
+    const renderDetail = (t) => {
+        let details = t.notes || '';
+        if (t.customer?.name) details += ` (Cust: ${t.customer.name})`;
+        if (t.wholesaleBuyer?.name) details += ` (Buyer: ${t.wholesaleBuyer.name})`;
+        if (t.product?.name) details += ` (Prod: ${t.product.name})`;
+        if (t.randomCustomerName) details += ` (Rand Cust: ${t.randomCustomerName})`;
+        return details || t.type?.replace('_', ' ') || 'N/A'; // Fallback
+    };
 
-      {totalPages > 1 && (
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-            <Pagination count={totalPages} page={page} onChange={(e, value) => setPage(value)} color="primary" />
+    return (
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+            <Typography variant="h4" component="h1" gutterBottom>Transaction History</Typography>
+
+            {/* Filter Section */}
+            <Paper sx={{ p: 2, mb: 3, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <TextField
+                    label="Start Date" type="date" name="startDate" size="small"
+                    value={dateRange.startDate} onChange={handleDateChange}
+                    InputLabelProps={{ shrink: true }} sx={{ minWidth: '160px' }}
+                />
+                <TextField
+                    label="End Date" type="date" name="endDate" size="small"
+                    value={dateRange.endDate} onChange={handleDateChange}
+                    InputLabelProps={{ shrink: true }} sx={{ minWidth: '160px' }}
+                />
+                <Button
+                    variant="contained" onClick={handleApplyFilter}
+                    disabled={!dateRange.startDate || !dateRange.endDate || isFetching}
+                > Apply Filter </Button>
+                <Button
+                    variant="outlined" onClick={handleClearFilter}
+                    disabled={(!dateRange.startDate && !dateRange.endDate) || isFetching}
+                > Clear Filter </Button>
+                 {isFetching && <CircularProgress size={24} sx={{ ml: 1 }} />}
+            </Paper>
+
+            {/* Table Section */}
+            {isLoading && transactions.length === 0 ? ( // Show skeleton only on initial full load
+                <TableSkeleton columns={5} rowsNum={10} />
+             ) : isError ? (
+                 <Typography color="error" sx={{ textAlign: 'center', my: 3 }}>Error loading history: {error?.message}</Typography>
+             ) : transactions.length === 0 ? (
+                 <Typography sx={{ textAlign: 'center', my: 3, color: 'text.secondary' }}>No transactions found for the selected period.</Typography>
+             ) : (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
+                                <TableCell>Date & Time</TableCell>
+                                <TableCell>Type</TableCell>
+                                <TableCell>Details / Notes</TableCell>
+                                <TableCell align="right">Amount (TK)</TableCell> {/* Added Amount */}
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {transactions.map((t) => (
+                                <TableRow key={t._id} hover>
+                                    <TableCell>{new Date(t.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell>{t.type?.replace('_', ' ') ?? 'N/A'}</TableCell>
+                                    <TableCell>{renderDetail(t)}</TableCell>
+                                    <TableCell align="right" sx={{ color: ['WITHDRAWAL', 'SALE', 'WHOLESALE_SALE', 'STOCK_REMOVE'].includes(t.type) ? 'error.main' : 'success.main', fontWeight: 'medium' }}>
+                                        {t.amount != null ? t.amount.toFixed(2) : (t.quantityChange != null ? (t.quantityChange > 0 ? `+${t.quantityChange}` : `${t.quantityChange}`) + ' units' : 'N/A')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {/* --- Use updated handler --- */}
+                                        {['SALE', 'DEPOSIT', 'WITHDRAWAL', 'BUY_BACK', 'WHOLESALE_SALE'].includes(t.type) && (
+                                            <Button onClick={() => handleViewReceipt(t)} size="small" variant="outlined"> View Receipt </Button>
+                                        )}
+                                        {/* --- End Update --- */}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+                    <Pagination
+                        count={totalPages}
+                        page={page}
+                        onChange={(e, value) => setPage(value)} // Let useQuery handle refetch
+                        color="primary"
+                        disabled={isFetching} // Disable while refetching
+                    />
+                </Box>
+            )}
         </Box>
-      )}
-    </Box>
-  );
+    );
 };
 
 export default HistoryPage;
