@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Link as RouterLink } from 'react-router-dom'; // Keep RouterLink for StatCards and history link
+import { Link as RouterLink } from 'react-router-dom';
 
 // MUI Imports
 import {
@@ -24,8 +24,8 @@ import {
     Avatar,
     useTheme,
     Divider,
-    Button, // Keep Button for View All History link
-    Link as MuiLink // Keep MuiLink for StatCard links
+    Button,
+    Link as MuiLink
 } from '@mui/material';
 
 // Icons
@@ -38,23 +38,25 @@ import HistoryIcon from '@mui/icons-material/History';
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// StatCard with Icon and optional Link
+// StatCard with Icon and optional Link, including animation class
 const StatCard = ({ title, value, icon, color = 'text.primary', bgColor = 'background.paper', linkTo }) => {
     const cardContent = (
-        <Paper sx={{
-            p: 2.5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: '100%',
-            bgcolor: bgColor,
-            boxShadow: 3,
-            transition: 'transform 0.2s ease-in-out',
-            '&:hover': linkTo ? {
-                transform: 'translateY(-4px)',
-                boxShadow: 6,
-            } : {},
-        }}>
+        <Paper
+            className="scale-up-center-normal" // Apply animation class
+            sx={{
+                p: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                height: '100%',
+                bgcolor: bgColor,
+                boxShadow: 3,
+                transition: 'transform 0.2s ease-in-out',
+                '&:hover': linkTo ? {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6,
+                } : {},
+            }}>
             <Box>
                 <Typography variant="h6" color="text.secondary" sx={{ mb: 0.5 }}>{title}</Typography>
                 <Typography variant="h4" component="p" sx={{ fontWeight: 'bold', color }}>{value}</Typography>
@@ -147,7 +149,6 @@ const DashboardPage = () => {
     const lowStockColor = stats.lowStockProducts > 0 ? theme.palette.warning.main : theme.palette.text.primary;
 
     return (
-        // --- Added width: '100%' here ---
         <Box sx={{ p: { xs: 1, sm: 2 }, width: '100%' }}>
             <Typography variant="h4" component="h1" sx={{ mb: 3, fontWeight: 'bold' }}>Dashboard Overview</Typography>
 

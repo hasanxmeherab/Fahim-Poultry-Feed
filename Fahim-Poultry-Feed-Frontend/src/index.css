@@ -1,7 +1,9 @@
+
 /* General Body Styles - Only keep what's not handled by MUI's CssBaseline */
 body {
   background-color: #f4f7f9;
 }
+
 /* Print Utility Styles */
 @page {
   /* This helps remove browser headers/footers */
@@ -13,7 +15,7 @@ body {
   .no-print {
     display: none !important;
   }
-  
+
   /* --- SYNTAX FIX ---
      The original code used '&' which is for SASS/SCSS, not plain CSS.
      This has been corrected to use the full selector.
@@ -21,7 +23,7 @@ body {
   body.print-active > *:not(.print-this-section) {
     display: none !important;
   }
-  
+
   body.print-active .print-this-section {
     display: block !important;
     position: absolute;
@@ -30,3 +32,49 @@ body {
     width: calc(100% - 40px);
   }
 }
+
+/* --- Card Animation --- */
+@keyframes scale-up-center-normal {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.scale-up-center-normal {
+  animation: scale-up-center-normal 0.6s cubic-bezier(0.390, 0.575, 0.565, 1.000) 0s 1 normal forwards;
+}
+/* --- End Animation --- */
+
+/* --- React Toastify Color Overrides --- */
+:root {
+  --toastify-color-success: #388e3c; /* Success Green */
+  --toastify-color-error: #d32f2f;   /* Error Red */
+  --toastify-color-warning: #ffa000; /* Warning Amber */
+  --toastify-color-info: #1976d2;    /* Info Blue */
+
+  /* Icon colors */
+  --toastify-icon-color-success: var(--toastify-color-success);
+  --toastify-icon-color-error: var(--toastify-color-error);
+  --toastify-icon-color-warning: var(--toastify-color-warning);
+  --toastify-icon-color-info: var(--toastify-color-info);
+
+  /* Progress bar colors */
+  --toastify-color-progress-success: var(--toastify-color-success);
+  --toastify-color-progress-error: var(--toastify-color-error);
+  --toastify-color-progress-warning: var(--toastify-color-warning);
+  --toastify-color-progress-info: var(--toastify-color-info);
+}
+
+/* Force white text on colored toasts */
+.Toastify__toast--success {
+  color: #ffffff;
+}
+.Toastify__toast--error {
+  color: #ffffff;
+}
+.Toastify__toast--warning {
+    color: #000000; /* Black text might be better on amber */
+}
+.Toastify__toast--info {
+    color: #ffffff;
+}
+/* --- End Toastify Overrides --- */
