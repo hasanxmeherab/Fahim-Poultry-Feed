@@ -1,31 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api';
 import { Link } from 'react-router-dom';
-import { debounce } from '@mui/material/utils'; // Import debounce
+import { debounce } from '@mui/material/utils';
 
 // MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, Modal, Fade, CircularProgress
+    TableRow, Paper, CircularProgress // Removed Modal, Fade
 } from '@mui/material';
 
+// Import reusable components
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-
-// Reusable modal style
-const modalStyle = {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: 400,
-    bgcolor: 'background.paper',
-    borderRadius: '8px',
-    boxShadow: 24,
-    p: 4,
-};
+import AmountEntryModal from '../components/AmountEntryModal.jsx'; // Import the reusable modal
 
 const WholesalePage = () => {
     const [buyers, setBuyers] = useState([]);
@@ -33,14 +22,11 @@ const WholesalePage = () => {
     const [isLoading, setIsLoading] = useState(true); // Combined loading state
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Modal State (Deposit/Withdrawal)
+    // Modal State (Deposit/Withdrawal) - Simplified
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentBuyer, setCurrentBuyer] = useState(null);
     const [modalType, setModalType] = useState(''); // 'deposit' or 'withdrawal'
-    const [amount, setAmount] = useState('');
-    // --- NEW: Modal validation error state ---
-    const [modalError, setModalError] = useState('');
-    // --- END NEW ---
+    const [modalApiError, setModalApiError] = useState(''); // State specifically for API errors in the modal
     const [isModalLoading, setIsModalLoading] = useState(false); // Modal submission loading
 
     // State for Buyer Deletion
@@ -53,26 +39,25 @@ const WholesalePage = () => {
     const [productToDelete, setProductToDelete] = useState(null);
     const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
-
     // Debounced fetch function
     const fetchData = useCallback(
         debounce(async (term) => {
             setIsLoading(true);
             try {
                 const fetchBuyers = api.get(`/wholesale-buyers?search=${term}`);
-                const fetchProducts = api.get('/wholesale-products'); // Products don't need search term here
+                const fetchProducts = api.get('/wholesale-products');
                 const [buyersRes, productsRes] = await Promise.all([fetchBuyers, fetchProducts]);
                 setBuyers(buyersRes.data);
                 setProducts(productsRes.data);
             } catch (err) {
                 showErrorToast(err, 'Failed to fetch wholesale data.');
-                setBuyers([]); // Clear data on error
+                setBuyers([]);
                 setProducts([]);
             } finally {
                 setIsLoading(false);
             }
         }, 500),
-        [] // Empty dependency array
+        []
     );
 
     // Effect to fetch data
@@ -98,7 +83,7 @@ const WholesalePage = () => {
         } catch (err) {
             showErrorToast(err, 'Failed to delete buyer.');
         } finally {
-            closeAllDialogs(); // Use generic close function
+            closeAllDialogs();
             setIsDeletingBuyer(false);
         }
     };
@@ -119,63 +104,50 @@ const WholesalePage = () => {
         } catch (err) {
             showErrorToast(err, 'Failed to delete product.');
         } finally {
-            closeAllDialogs(); // Use generic close function
+            closeAllDialogs();
             setIsDeletingProduct(false);
         }
     };
 
-    // Open Deposit/Withdrawal Modal
+    // Open Deposit/Withdrawal Modal - Simpler
     const openTransactionModal = (buyer, type) => {
         setCurrentBuyer(buyer);
         setModalType(type);
-        setAmount('');
-        setModalError(''); // Clear errors on open
+        setModalApiError(''); // Clear previous API errors
         setIsModalLoading(false);
         setModalIsOpen(true);
     };
 
-    // Close ALL modals/dialogs
+    // Close ALL modals/dialogs - Simpler
     const closeAllDialogs = () => {
         setModalIsOpen(false);
         setOpenBuyerDialog(false);
         setOpenProductDialog(false);
-         // Delay clearing data for animations
         setTimeout(() => {
              setCurrentBuyer(null);
              setBuyerToDelete(null);
              setProductToDelete(null);
-             setAmount('');
-             setModalError('');
-         }, 300);
+             setModalApiError(''); // Clear API error on close
+         }, 300); // Delay clearing data
     };
 
-    // Handle Deposit/Withdrawal Submit
-    const handleModalSubmit = async (e) => {
-        e.preventDefault();
-        // --- NEW: Client-side validation ---
-        const numAmount = parseFloat(amount);
-        if (isNaN(numAmount) || numAmount <= 0) {
-            setModalError("Please enter a valid positive amount.");
-            return;
-        }
-        // No balance check needed here as per model logic (can have negative balance)
-        setModalError(''); // Clear error if validation passes
-        // --- END NEW ---
-
+    // Handle Deposit/Withdrawal Submit - Receives validated amount
+    const handleModalSubmit = async (submittedAmount) => {
+        // No client-side validation needed here
         setIsModalLoading(true);
+        setModalApiError(''); // Clear previous error
         const endpoint = `/wholesale-buyers/${currentBuyer._id}/${modalType}`;
         try {
-            const response = await api.patch(endpoint, { amount: numAmount });
-            // Update the buyer in the local state
+            const response = await api.patch(endpoint, { amount: submittedAmount });
             setBuyers(prevBuyers =>
                 prevBuyers.map(b => b._id === response.data._id ? response.data : b)
             );
             showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
-            closeAllDialogs(); // Close modal on success
+            closeAllDialogs();
         } catch (err) {
             const errMsg = err.response?.data?.message || err.response?.data?.error || 'Transaction failed.';
-            setModalError(errMsg); // Show error in modal
-            showErrorToast(err, 'Transaction failed.'); // Show toast
+            setModalApiError(errMsg); // Set error state to pass to the modal
+            showErrorToast(err, 'Transaction failed.'); // Show toast as well
         } finally {
             setIsModalLoading(false);
         }
@@ -207,7 +179,7 @@ const WholesalePage = () => {
                             <TableCell>Business Name</TableCell>
                             <TableCell>Phone</TableCell>
                             <TableCell>Balance (TK)</TableCell>
-                            <TableCell sx={{ width: '35%' }}>Actions</TableCell> {/* Adjusted width */}
+                            <TableCell sx={{ width: '35%' }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -226,7 +198,7 @@ const WholesalePage = () => {
                                     <TableCell sx={{ color: buyer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'medium' }}>
                                         {buyer.balance.toFixed(2)}
                                     </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}> {/* Reduced gap */}
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         <Button onClick={() => openTransactionModal(buyer, 'deposit')} variant="contained" size="small" sx={{ mr: 0.5 }}>Deposit</Button>
                                         <Button onClick={() => openTransactionModal(buyer, 'withdrawal')} variant="outlined" size="small" color="warning" sx={{ mr: 0.5 }}>Withdraw</Button>
                                         <Button component={Link} to={`/edit-wholesale-buyer/${buyer._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
@@ -257,17 +229,17 @@ const WholesalePage = () => {
                     <TableHead>
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
                             <TableCell>Product Name</TableCell>
-                            <TableCell sx={{ width: '25%' }}>Actions</TableCell> {/* Adjusted width */}
+                            <TableCell sx={{ width: '25%' }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {isLoading ? ( // Use the same loading state for simplicity
+                        {isLoading ? (
                             <TableSkeleton columns={2} rowsNum={3} />
                         ) : products.length > 0 ? (
                             products.map((product) => (
                                 <TableRow key={product._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                                     <TableCell>{product.name}</TableCell>
-                                    <TableCell sx={{ display: 'flex', gap: 0.5 }}> {/* Reduced gap */}
+                                    <TableCell sx={{ display: 'flex', gap: 0.5 }}>
                                         <Button component={Link} to={`/edit-wholesale-product/${product._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
                                         <Button onClick={() => handleProductDeleteClick(product)} variant="outlined" size="small" color="error">Delete</Button>
                                     </TableCell>
@@ -284,44 +256,17 @@ const WholesalePage = () => {
                 </Table>
             </TableContainer>
 
-            {/* Deposit/Withdrawal Modal for Wholesale Buyer */}
-            <Modal open={modalIsOpen} onClose={closeAllDialogs} closeAfterTransition>
-                <Fade in={modalIsOpen}>
-                    <Box sx={modalStyle}>
-                        <Typography variant="h6" component="h2">
-                            {modalType === 'deposit' ? 'Make Deposit' : 'Make Withdrawal'} for {currentBuyer?.name}
-                        </Typography>
-                        <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth
-                                autoFocus
-                                margin="dense"
-                                label="Amount (TK)"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => {
-                                    setAmount(e.target.value);
-                                    // --- NEW: Clear error on change ---
-                                    if (modalError) setModalError('');
-                                    // --- END NEW ---
-                                }}
-                                // --- UPDATED: Show validation error ---
-                                error={!!modalError}
-                                helperText={modalError || 'Enter a positive amount.'}
-                                // --- END UPDATE ---
-                                required
-                                inputProps={{ min: "0.01", step: "0.01" }}
-                            />
-                            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeAllDialogs} disabled={isModalLoading}>Cancel</Button>
-                                <Button type="submit" variant="contained" disabled={isModalLoading}>
-                                    {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Box>
-                </Fade>
-            </Modal>
+            {/* --- USE REUSABLE MODAL for Deposit/Withdrawal --- */}
+            <AmountEntryModal
+                open={modalIsOpen}
+                onClose={closeAllDialogs}
+                onSubmit={handleModalSubmit}
+                title={modalType === 'deposit' ? `Deposit for ${currentBuyer?.name}` : `Withdrawal for ${currentBuyer?.name}`}
+                label="Amount (TK)"
+                isLoading={isModalLoading}
+                error={modalApiError} // Pass API error state
+            />
+            {/* --- END REUSABLE MODAL USAGE --- */}
 
             {/* Buyer Delete Confirmation */}
             <ConfirmDialog

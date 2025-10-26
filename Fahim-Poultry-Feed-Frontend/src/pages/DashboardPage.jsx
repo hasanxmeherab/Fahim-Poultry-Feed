@@ -2,159 +2,261 @@ import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Link as RouterLink } from 'react-router-dom'; // Keep RouterLink for StatCards and history link
 
-// MUI Imports - Now all are used
-import { 
-    Box, 
-    Typography, 
-    Grid, 
-    Paper, 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableContainer, 
-    TableHead, 
+// MUI Imports
+import {
+    Box,
+    Typography,
+    Grid,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
     TableRow,
-    CircularProgress 
+    CircularProgress,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
+    Avatar,
+    useTheme,
+    Divider,
+    Button, // Keep Button for View All History link
+    Link as MuiLink // Keep MuiLink for StatCard links
 } from '@mui/material';
+
+// Icons
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import HistoryIcon from '@mui/icons-material/History';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const StatCard = ({ title, value, color = 'text.primary' }) => (
-    <Paper sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="h6" color="text.secondary">{title}</Typography>
-        <Typography variant="h4" component="p" sx={{ fontWeight: 'bold', color }}>{value}</Typography>
-    </Paper>
-);
+// StatCard with Icon and optional Link
+const StatCard = ({ title, value, icon, color = 'text.primary', bgColor = 'background.paper', linkTo }) => {
+    const cardContent = (
+        <Paper sx={{
+            p: 2.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: '100%',
+            bgcolor: bgColor,
+            boxShadow: 3,
+            transition: 'transform 0.2s ease-in-out',
+            '&:hover': linkTo ? {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+            } : {},
+        }}>
+            <Box>
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 0.5 }}>{title}</Typography>
+                <Typography variant="h4" component="p" sx={{ fontWeight: 'bold', color }}>{value}</Typography>
+            </Box>
+            <Avatar sx={{ bgcolor: color, color: 'common.white', width: 56, height: 56 }}>
+                 {icon}
+            </Avatar>
+        </Paper>
+    );
+
+    return linkTo ? (
+        <MuiLink component={RouterLink} to={linkTo} underline="none">
+            {cardContent}
+        </MuiLink>
+    ) : (
+        cardContent
+    );
+};
+
 
 const DashboardPage = () => {
     const [stats, setStats] = useState(null);
     const [chartData, setChartData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const theme = useTheme();
 
-        useEffect(() => {
-            const fetchAllData = async () => {
-                try {
-                    // --- Calculate "today" in the user's local timezone ---
-                    const todayStart = new Date();
-                    todayStart.setHours(0, 0, 0, 0);
+    useEffect(() => {
+        const fetchAllData = async () => {
+             setIsLoading(true);
+             setError(null);
+            try {
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+                const startDateISO = todayStart.toISOString();
+                const endDateISO = todayEnd.toISOString();
 
-                    const todayEnd = new Date();
-                    todayEnd.setHours(23, 59, 59, 999);
-                    
-                    // Convert to ISO strings, which preserves timezone info for the backend
-                    const startDateISO = todayStart.toISOString();
-                    const endDateISO = todayEnd.toISOString();
-
-                    // --- Make API calls with the new date parameters ---
-                    const [statsRes, chartsRes] = await Promise.all([
-                        // Pass the user's "today" as query parameters
-                        api.get(`/dashboard/stats?startDate=${startDateISO}&endDate=${endDateISO}`),
-                        api.get('/reports/dashboard-charts')
-                    ]);
-                    setStats(statsRes.data);
-                    setChartData(chartsRes.data);
-                } catch (err) {
-                    setError('Failed to fetch dashboard data.');
-                    console.error(err);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchAllData();
-        }, []);
+                const [statsRes, chartsRes] = await Promise.all([
+                    api.get(`/dashboard/stats?startDate=${startDateISO}&endDate=${endDateISO}`),
+                    api.get('/reports/dashboard-charts')
+                ]);
+                setStats(statsRes.data);
+                setChartData(chartsRes.data);
+            } catch (err) {
+                setError('Failed to fetch dashboard data. Please check connection and try again.');
+                console.error(err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAllData();
+    }, []);
 
     const salesChartOptions = {
         responsive: true,
-        plugins: { 
-            legend: { position: 'top' }, 
-            title: { display: true, text: 'Daily Sales (Last 7 Days)' } 
-        },
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' }, title: { display: false } },
+        scales: {
+             x: { grid: { display: false } },
+             y: { grid: { color: theme.palette.divider } }
+        }
     };
 
     const salesChartData = {
-        labels: chartData?.dailySales.map(d => new Date(d._id).toLocaleDateString('en-US', { weekday: 'short' })) || [],
+        labels: chartData?.dailySales.map(d => new Date(d._id).toLocaleDateString('en-BD', { weekday: 'short', month: 'short', day: 'numeric' })) || [],
         datasets: [{
             label: 'Revenue (TK)',
             data: chartData?.dailySales.map(d => d.totalRevenue) || [],
-            backgroundColor: 'rgba(39, 174, 96, 0.7)',
-            borderRadius: 4,
+            backgroundColor: theme.palette.primary.main,
+            hoverBackgroundColor: theme.palette.primary.dark,
+            borderRadius: 6,
+            barThickness: 'flex',
+            maxBarThickness: 50,
         }],
     };
-    
+
     if (isLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+        return ( <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><CircularProgress /></Box> );
     }
 
     if (error) {
-        return <Typography color="error" align="center" sx={{ mt: 4 }}>{error}</Typography>;
+        return <Typography color="error" align="center" sx={{ mt: 4, p: 2 }}>{error}</Typography>;
     }
-    
-    if (!stats) return null;
+
+    if (!stats || !chartData) {
+         return <Typography align="center" sx={{ mt: 4, p: 2 }}>Could not load dashboard data.</Typography>;
+    }
+
+    const debtColor = stats.negativeBalanceCustomers > 0 ? theme.palette.error.main : theme.palette.text.primary;
+    const lowStockColor = stats.lowStockProducts > 0 ? theme.palette.warning.main : theme.palette.text.primary;
 
     return (
-        <Box>
-            <Typography variant="h4" component="h1" gutterBottom>Dashboard</Typography>
-            
+        // --- Added width: '100%' here ---
+        <Box sx={{ p: { xs: 1, sm: 2 }, width: '100%' }}>
+            <Typography variant="h4" component="h1" sx={{ mb: 3, fontWeight: 'bold' }}>Dashboard Overview</Typography>
+
+            {/* Stat Cards Grid */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item xs={12} sm={4}>
-                    <StatCard title="Sales Today" value={`TK ${stats.salesToday.toFixed(2)}`} color="success.main" />
+                <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                        title="Sales Today"
+                        value={`TK ${stats.salesToday.toFixed(2)}`}
+                        icon={<PointOfSaleIcon />}
+                        color={theme.palette.success.dark}
+                        linkTo="/reports/sales"
+                    />
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                    <StatCard title="Customers with Debt" value={stats.negativeBalanceCustomers} color={stats.negativeBalanceCustomers > 0 ? 'error.main' : 'text.primary'} />
+                <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                        title="Customers with Debt"
+                        value={stats.negativeBalanceCustomers}
+                        icon={<PeopleOutlineIcon />}
+                        color={debtColor}
+                        linkTo="/customers"
+                    />
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                    <StatCard title="Products Low in Stock" value={stats.lowStockProducts} color={stats.lowStockProducts > 0 ? 'warning.main' : 'text.primary'} />
+                <Grid item xs={12} sm={6} md={4}>
+                    <StatCard
+                        title="Products Low in Stock (<10)"
+                        value={stats.lowStockProducts}
+                        icon={<Inventory2OutlinedIcon />}
+                        color={lowStockColor}
+                        linkTo="/inventory"
+                    />
                 </Grid>
             </Grid>
 
+            {/* Charts and Top Products Grid */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Sales Chart */}
                 <Grid item xs={12} lg={8}>
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" component="h3">Sales Trend</Typography>
-                        <Bar options={salesChartOptions} data={salesChartData} />
-                    </Paper>
-                </Grid>
-                <Grid item xs={12} lg={4}>
-                    <Paper sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h6" component="h3">Top Selling Products</Typography>
-                        <Box component="ol" sx={{ pl: 3, mt: 1 }}>
-                            {chartData?.topProducts.map(p => (
-                                <Typography component="li" key={p._id} sx={{ mb: 1 }}>
-                                    {p._id} - <Box component="span" sx={{ fontWeight: 'bold' }}>{p.totalQuantitySold} units</Box>
-                                </Typography>
-                            ))}
+                     <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
+                        <Typography variant="h6" component="h3" sx={{ mb: 2 }}>Sales Trend (Last 7 Days)</Typography>
+                        <Box sx={{ flexGrow: 1, position: 'relative' }}>
+                           <Bar options={salesChartOptions} data={salesChartData} />
                         </Box>
                     </Paper>
                 </Grid>
+                {/* Top Selling Products List */}
+                <Grid item xs={12} lg={4}>
+                     <Paper sx={{ p: 3, height: '400px', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
+                        <Typography variant="h6" component="h3" sx={{ mb: 1 }}>Top Selling Products</Typography>
+                        <List sx={{ overflowY: 'auto', flexGrow: 1 }}>
+                            {chartData.topProducts.length > 0 ? chartData.topProducts.map((p, index) => (
+                                <React.Fragment key={p._id || index}>
+                                    <ListItem disablePadding>
+                                        <ListItemAvatar sx={{ minWidth: '40px' }}>
+                                            <Avatar sx={{ bgcolor: theme.palette.secondary.light, width: 32, height: 32 }}>
+                                                <StarBorderIcon fontSize="small" />
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={p._id || 'Unknown Product'}
+                                            secondary={`${p.totalQuantitySold} units sold`}
+                                        />
+                                    </ListItem>
+                                    {index < chartData.topProducts.length - 1 && <Divider variant="inset" component="li" />}
+                                </React.Fragment>
+                            )) : <Typography sx={{ textAlign: 'center', color: 'text.secondary', mt: 4 }}>No product sales data available.</Typography> }
+                        </List>
+                    </Paper>
+                </Grid>
             </Grid>
 
-            <Typography variant="h5" component="h2" gutterBottom>Recent Transactions</Typography>
-            <TableContainer component={Paper}>
-                <Table>
+            {/* Recent Transactions Table */}
+             <Typography variant="h5" component="h2" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                 <HistoryIcon sx={{ mr: 1 }} /> Recent Transactions
+             </Typography>
+            <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+                <Table size="small">
                     <TableHead>
-                        <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
-                            <TableCell>Date</TableCell>
+                        <TableRow sx={{ '& th': { backgroundColor: 'action.hover', fontWeight: 'bold' } }}>
+                            <TableCell>Date & Time</TableCell>
                             <TableCell>Type</TableCell>
                             <TableCell>Details</TableCell>
+                            <TableCell>Customer/Buyer</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {stats.recentTransactions.map(t => (
-                            <TableRow key={t._id} hover>
-                                <TableCell>{new Date(t.createdAt).toLocaleString()}</TableCell>
-                                <TableCell>{t.type}</TableCell>
-                                <TableCell>{t.notes}</TableCell>
+                        {stats.recentTransactions.length > 0 ? stats.recentTransactions.map(t => (
+                            <TableRow key={t._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                <TableCell sx={{ whiteSpace: 'nowrap' }}>{new Date(t.createdAt).toLocaleString()}</TableCell>
+                                <TableCell>{t.type?.replace('_',' ')}</TableCell>
+                                <TableCell>{t.notes || 'No details'}</TableCell>
+                                <TableCell>
+                                    {t.customer?.name || t.wholesaleBuyer?.name || t.randomCustomerName || '-'}
+                                </TableCell>
                             </TableRow>
-                        ))}
+                        )) : (
+                             <TableRow>
+                                 <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                                     <Typography color="text.secondary">No recent transactions found.</Typography>
+                                 </TableCell>
+                             </TableRow>
+                        )}
                     </TableBody>
                 </Table>
+                 <Box sx={{ p: 1, textAlign: 'right' }}>
+                    <Button component={RouterLink} to="/history" size="small">
+                        View All History
+                    </Button>
+                 </Box>
             </TableContainer>
         </Box>
     );

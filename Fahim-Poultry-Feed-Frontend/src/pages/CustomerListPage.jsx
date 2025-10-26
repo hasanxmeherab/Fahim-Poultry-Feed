@@ -1,45 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
-import { debounce } from '@mui/material/utils'; // Import debounce
+import { debounce } from '@mui/material/utils';
 
 // MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, Modal, Fade, CircularProgress
+    TableRow, Paper, CircularProgress // Removed Modal, Fade
 } from '@mui/material';
 
+// Import reusable components
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-
-// Reusable modal style (consider moving to a shared file if used often)
-const modalStyle = {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: 400,
-    bgcolor: 'background.paper',
-    borderRadius: '8px',
-    boxShadow: 24,
-    p: 4,
-};
+import AmountEntryModal from '../components/AmountEntryModal.jsx'; // Import the reusable modal
 
 const CustomerListPage = () => {
     const [customers, setCustomers] = useState([]);
     const [isLoading, setIsLoading] = useState(true); // For table loading
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Modal State
+    // Modal State - Simplified
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState(null);
     const [modalType, setModalType] = useState(''); // 'deposit' or 'withdrawal'
-    const [amount, setAmount] = useState('');
-    // --- NEW: State for modal validation errors ---
-    const [modalError, setModalError] = useState('');
-    // --- END NEW ---
+    const [modalApiError, setModalApiError] = useState(''); // State specifically for API errors in the modal
     const [isModalLoading, setIsModalLoading] = useState(false); // For modal submission loading
 
     // Delete Dialog State
@@ -50,84 +36,66 @@ const CustomerListPage = () => {
     // Debounced search function
     const fetchCustomers = useCallback(
         debounce(async (term) => {
-            setIsLoading(true); // Indicate loading when fetch starts
+            setIsLoading(true);
             try {
                 const response = await api.get(`/customers?search=${term}`);
                 setCustomers(response.data);
             } catch (err) {
                 showErrorToast(err, 'Failed to fetch customers.');
-                setCustomers([]); // Clear customers on error
+                setCustomers([]);
             } finally {
-                setIsLoading(false); // Stop loading indicator
+                setIsLoading(false);
             }
-        }, 500), // 500ms delay
-        [] // Empty dependency array means the debounced function is created once
+        }, 500),
+        []
     );
 
-    // Effect to fetch customers on initial load and when searchTerm changes
+    // Effect to fetch customers
     useEffect(() => {
         fetchCustomers(searchTerm);
-        // Cleanup function to cancel debounce timer if component unmounts or searchTerm changes quickly
         return () => fetchCustomers.clear();
     }, [searchTerm, fetchCustomers]);
 
-    // Open deposit/withdrawal modal
+    // Open deposit/withdrawal modal - Simpler now
     const openModal = (customer, type) => {
         setCurrentCustomer(customer);
         setModalType(type);
+        setModalApiError(''); // Clear previous API errors
+        setIsModalLoading(false);
         setModalIsOpen(true);
-        setAmount('');
-        setModalError(''); // Clear previous errors when opening
-        setIsModalLoading(false); // Reset loading state
     };
 
-    // Close any modal/dialog
+    // Close any modal/dialog - Simpler now
     const closeModal = () => {
         setModalIsOpen(false);
         setOpenDeleteDialog(false);
-        // Delay clearing data slightly for fade-out animations
         setTimeout(() => {
             setCurrentCustomer(null);
             setCustomerToDelete(null);
-            setAmount('');
-            setModalError('');
-        }, 300);
+            setModalApiError(''); // Clear API error on close
+        }, 300); // Delay clearing data
     };
 
-    // Handle submission of deposit/withdrawal modal
-    const handleModalSubmit = async (e) => {
-        e.preventDefault();
-        // --- NEW: Client-side validation ---
-        const numAmount = parseFloat(amount);
-        if (isNaN(numAmount) || numAmount <= 0) {
-            setModalError("Please enter a valid positive amount.");
-            return; // Stop if invalid
-        }
-        // Specific check for withdrawal
-        if (modalType === 'withdrawal' && currentCustomer && numAmount > currentCustomer.balance) {
-             setModalError(`Cannot withdraw more than the available balance (TK ${currentCustomer.balance.toFixed(2)}).`);
-             return; // Stop if insufficient balance
-        }
-        setModalError(''); // Clear error if validation passes
-        // --- END NEW ---
-
+    // Handle submission of deposit/withdrawal modal - Receives amount
+    const handleModalSubmit = async (submittedAmount) => {
+        // No client-side validation needed here, AmountEntryModal handles it
         setIsModalLoading(true);
+        setModalApiError(''); // Clear previous API error before new attempt
         const endpoint = `/customers/${currentCustomer._id}/${modalType}`;
         try {
-            const response = await api.patch(endpoint, { amount: numAmount });
-            // Update the specific customer in the local state
+            const response = await api.patch(endpoint, { amount: submittedAmount });
             setCustomers(prevCustomers =>
                 prevCustomers.map(c => c._id === response.data._id ? response.data : c)
             );
             showSuccessToast(`${modalType.charAt(0).toUpperCase() + modalType.slice(1)} successful!`);
             closeModal(); // Close modal on success
         } catch (err) {
-            // Display error from backend response within the modal or use toast
-            const errMsg = err.response?.data?.error || `Failed to process ${modalType}.`;
-            setModalError(errMsg); // Show error in modal
-            showErrorToast(err, `Failed to process ${modalType}.`); // Also show toast as backup
+            // Get error message from backend or default
+            const errMsg = err.response?.data?.message || err.response?.data?.error || `Failed to process ${modalType}.`;
+            setModalApiError(errMsg); // Set API error state to pass to the modal
+            showErrorToast(err, `Failed to process ${modalType}.`); // Also show toast
         } finally {
-            setIsModalLoading(false); // Stop loading indicator
+            setIsModalLoading(false);
         }
     };
 
@@ -142,13 +110,12 @@ const CustomerListPage = () => {
         setIsDeleting(true);
         try {
             await api.delete(`/customers/${customerToDelete._id}`);
-            // Remove the customer from the local state
             setCustomers(prevCustomers => prevCustomers.filter(c => c._id !== customerToDelete._id));
             showSuccessToast('Customer deleted successfully!');
         } catch (err) {
             showErrorToast(err, 'Failed to delete customer.');
         } finally {
-            closeModal(); // Use the general close function
+            closeModal();
             setIsDeleting(false);
         }
     };
@@ -182,7 +149,7 @@ const CustomerListPage = () => {
                     </TableHead>
                     <TableBody>
                         {isLoading ? (
-                            <TableSkeleton columns={4} rowsNum={5} /> // Show skeleton loading
+                            <TableSkeleton columns={4} rowsNum={5} />
                         ) : customers.length > 0 ? (
                             customers.map((customer) => (
                                 <TableRow key={customer._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
@@ -195,7 +162,7 @@ const CustomerListPage = () => {
                                     <TableCell sx={{ color: customer.balance < 0 ? 'error.main' : 'inherit', fontWeight: 'medium' }}>
                                         {customer.balance.toFixed(2)}
                                     </TableCell>
-                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}> {/* Reduced gap */}
+                                    <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         <Button onClick={() => openModal(customer, 'deposit')} variant="contained" size="small" sx={{ mr: 0.5 }}>Deposit</Button>
                                         <Button onClick={() => openModal(customer, 'withdrawal')} variant="outlined" size="small" color="warning" sx={{ mr: 0.5 }}>Withdraw</Button>
                                         <Button component={Link} to={`/edit-customer/${customer._id}`} variant="outlined" size="small" color="info" sx={{ mr: 0.5 }}>Edit</Button>
@@ -214,49 +181,19 @@ const CustomerListPage = () => {
                 </Table>
             </TableContainer>
 
-            {/* Deposit/Withdrawal Modal */}
-            <Modal
+            {/* --- USE REUSABLE MODAL --- */}
+            <AmountEntryModal
                 open={modalIsOpen}
                 onClose={closeModal}
-                closeAfterTransition
-                aria-labelledby="transaction-modal-title"
-            >
-                <Fade in={modalIsOpen}>
-                    <Box sx={modalStyle}>
-                        <Typography id="transaction-modal-title" variant="h6" component="h2">
-                            {modalType === 'deposit' ? 'Make a Deposit' : 'Make a Withdrawal'} for {currentCustomer?.name}
-                        </Typography>
-                        <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth
-                                autoFocus
-                                margin="dense"
-                                label="Amount (TK)"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => {
-                                    setAmount(e.target.value);
-                                    // --- NEW: Clear error on change ---
-                                    if (modalError) setModalError('');
-                                    // --- END NEW ---
-                                }}
-                                // --- UPDATED: Show validation error ---
-                                error={!!modalError}
-                                helperText={modalError || 'Enter a positive amount.'}
-                                // --- END UPDATE ---
-                                required
-                                inputProps={{ min: "0.01", step: "0.01" }} // Input hints
-                            />
-                            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
-                                <Button type="submit" variant="contained" disabled={isModalLoading}>
-                                    {isModalLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Box>
-                </Fade>
-            </Modal>
+                onSubmit={handleModalSubmit} // Pass the correct submit handler
+                title={modalType === 'deposit' ? `Deposit for ${currentCustomer?.name}` : `Withdrawal for ${currentCustomer?.name}`}
+                label="Amount (TK)"
+                isLoading={isModalLoading}
+                error={modalApiError} // Pass the API error state here
+                // Optionally add helper text if needed, default is fine
+                // helperText="Enter a positive amount."
+            />
+            {/* --- END REUSABLE MODAL USAGE --- */}
 
             {/* Delete Confirmation Dialog */}
             <ConfirmDialog
@@ -264,10 +201,10 @@ const CustomerListPage = () => {
                 title="Confirm Deletion"
                 message={`Are you sure you want to delete the customer "${customerToDelete?.name}"? This also removes their transaction history and cannot be undone.`}
                 onConfirm={handleConfirmDelete}
-                onCancel={closeModal} // Use general close function
+                onCancel={closeModal}
                 confirmButtonText="Delete"
                 confirmColor="error"
-                isLoading={isDeleting} // Pass loading state
+                isLoading={isDeleting}
             />
         </Box>
     );

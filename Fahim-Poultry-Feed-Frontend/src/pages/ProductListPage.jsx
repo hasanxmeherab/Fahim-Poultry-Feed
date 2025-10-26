@@ -1,46 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/api.js';
 import { Link } from 'react-router-dom';
-import { debounce } from '@mui/material/utils'; // Import debounce
+import { debounce } from '@mui/material/utils';
 
 // MUI Imports
 import {
     Box, Button, Typography, TextField, Table,
     TableBody, TableCell, TableContainer, TableHead,
-    TableRow, Paper, Modal, Fade, CircularProgress
+    TableRow, Paper, CircularProgress // Removed Modal, Fade
 } from '@mui/material';
 
+// Import reusable components
 import { showErrorToast, showSuccessToast } from '../utils/notifications.js';
 import TableSkeleton from '../components/TableSkeleton.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-
-// Reusable modal style
-const modalStyle = {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: 400,
-    bgcolor: 'background.paper',
-    borderRadius: '8px',
-    boxShadow: 24,
-    p: 4,
-};
+import AmountEntryModal from '../components/AmountEntryModal.jsx'; // Import the reusable modal
 
 const ProductListPage = () => {
     const [products, setProducts] = useState([]);
     const [isLoading, setIsLoading] = useState(true); // Table loading
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Modal State (Add/Remove Stock)
+    // Modal State (Add/Remove Stock) - Simplified
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [currentProduct, setCurrentProduct] = useState(null);
     const [modalType, setModalType] = useState(''); // 'add' or 'remove'
-    const [quantity, setQuantity] = useState('');
-    // --- NEW: Modal validation error state ---
-    const [modalError, setModalError] = useState('');
-    // --- END NEW ---
-    const [isModalLoading, setIsModalLoading] = useState(false); // Modal submission loading
+    const [modalApiError, setModalApiError] = useState(''); // State specifically for API errors in the modal
+    const [isModalLoading, setIsModalLoading] = useState(false); // Modal submission loading ('add' only for now)
 
     // Edit State
     const [editRowId, setEditRowId] = useState(null);
@@ -55,7 +41,7 @@ const ProductListPage = () => {
     // Remove Stock Confirmation Dialog State
     const [openConfirmStockDialog, setOpenConfirmStockDialog] = useState(false);
     const [stockActionDetails, setStockActionDetails] = useState(null); // { product, quantity }
-    const [isRemovingStock, setIsRemovingStock] = useState(false);
+    const [isRemovingStock, setIsRemovingStock] = useState(false); // Loading state for confirmation
 
     // Debounced search function
     const fetchProducts = useCallback(
@@ -80,68 +66,57 @@ const ProductListPage = () => {
         return () => fetchProducts.clear();
     }, [searchTerm, fetchProducts]);
 
-    // Open Add/Remove Stock modal
+    // Open Add/Remove Stock modal - Simpler
     const openModal = (product, type) => {
         setCurrentProduct(product);
         setModalType(type);
-        setQuantity(''); // Reset quantity
-        setModalError(''); // Reset errors
+        setModalApiError(''); // Clear previous API errors
         setIsModalLoading(false);
         setModalIsOpen(true);
     };
 
-    // Generic close function for all modals/dialogs
+    // Generic close function for all modals/dialogs - Simpler
     const closeModal = () => {
         setModalIsOpen(false);
         setOpenDeleteDialog(false);
         setOpenConfirmStockDialog(false);
-        // Delay clearing state for animations
         setTimeout(() => {
             setCurrentProduct(null);
             setProductToDelete(null);
             setStockActionDetails(null);
-            setQuantity('');
-            setModalError('');
-        }, 300);
+            setModalApiError(''); // Clear API error on close
+        }, 300); // Delay clearing data
     };
 
-    // Handle Add/Remove Stock modal submission
-    const handleModalSubmit = async (e) => {
-        e.preventDefault();
-        // --- NEW: Client-side validation ---
-        const numQuantity = parseInt(quantity, 10);
-        if (isNaN(numQuantity) || !Number.isInteger(numQuantity) || numQuantity <= 0) {
-            setModalError("Please enter a valid positive whole number quantity.");
-            return;
-        }
-
-        if (modalType === 'remove' && currentProduct && numQuantity > currentProduct.quantity) {
-            setModalError(`Cannot remove more stock than available (${currentProduct.quantity}).`);
-            return;
-        }
-        setModalError(''); // Clear error if validation passes
-        // --- END NEW ---
-
+    // Handle submission trigger from AmountEntryModal - Receives validated quantity
+    const handleModalSubmit = async (submittedQuantity) => {
+        setModalApiError(''); // Clear previous API error
 
         if (modalType === 'remove') {
-            // Show confirmation dialog for removal
-            setStockActionDetails({ product: currentProduct, quantity: numQuantity });
+            // Check if attempting to remove more than available before showing confirmation
+            if (currentProduct && submittedQuantity > currentProduct.quantity) {
+                 setModalApiError(`Cannot remove more stock than available (${currentProduct.quantity}).`);
+                 // Keep the AmountEntryModal open to show the error
+                 return;
+            }
+            // If valid, set details for confirmation dialog
+            setStockActionDetails({ product: currentProduct, quantity: submittedQuantity });
             setOpenConfirmStockDialog(true);
-            // Don't close the primary modal yet, wait for confirmation dialog result
-        } else { // Handle 'add' stock directly
+            // Don't close AmountEntryModal yet, confirmation will handle closing both
+        }
+        else if (modalType === 'add') { // Handle 'add' stock directly
             setIsModalLoading(true);
             const endpoint = `/products/${currentProduct._id}/addstock`;
-            const body = { addQuantity: numQuantity };
+            const body = { addQuantity: submittedQuantity };
             try {
                 const response = await api.patch(endpoint, body);
-                // Update product in local state
                 setProducts(prev => prev.map(p => p._id === currentProduct._id ? response.data : p));
                 showSuccessToast(`Stock added successfully!`);
                 closeModal(); // Close modal on success
             } catch (err) {
                 const errMsg = err.response?.data?.error || `Failed to add stock.`;
-                setModalError(errMsg); // Show error in modal
-                showErrorToast(err, `Failed to add stock.`); // Show toast
+                setModalApiError(errMsg); // Pass API error back to modal
+                showErrorToast(err, `Failed to add stock.`);
             } finally {
                 setIsModalLoading(false);
             }
@@ -151,7 +126,7 @@ const ProductListPage = () => {
     // Handle confirmation for removing stock
     const handleConfirmStockRemove = async () => {
         if (!stockActionDetails) return;
-        setIsRemovingStock(true); // Use dedicated loading state for confirm dialog
+        setIsRemovingStock(true);
 
         const { product, quantity: removeQuantity } = stockActionDetails;
         const endpoint = `/products/${product._id}/removestock`;
@@ -159,26 +134,19 @@ const ProductListPage = () => {
 
         try {
             const response = await api.patch(endpoint, body);
-            // Update product in local state
             setProducts(prev => prev.map(p => p._id === product._id ? response.data : p));
             showSuccessToast(`Stock removed successfully!`);
+            closeModal(); // Close both confirmation and underlying modal
         } catch (err) {
-            // Show error (could potentially be displayed in the original modal if needed, but toast is simpler here)
             showErrorToast(err, `Failed to remove stock.`);
+            // Optionally, set modalApiError here if you want error in AmountEntryModal after confirm fails
+            // setModalApiError(err.response?.data?.error || 'Failed to remove stock.');
+            setOpenConfirmStockDialog(false); // Close only confirm dialog on error
         } finally {
-             // Close BOTH the confirmation dialog and the original stock modal
-            setOpenConfirmStockDialog(false);
-            setModalIsOpen(false); // Close the underlying add/remove modal
-            setTimeout(() => { // Clear states after animation
-                 setStockActionDetails(null);
-                 setCurrentProduct(null);
-                 setQuantity('');
-                 setModalError('');
-             }, 300);
             setIsRemovingStock(false);
+            // State clearing now handled mostly by closeModal
         }
     };
-
 
     // Delete product functions
     const handleDeleteClick = (product) => {
@@ -191,13 +159,12 @@ const ProductListPage = () => {
         setIsDeleting(true);
         try {
             await api.delete(`/products/${productToDelete._id}`);
-            // Remove from local state
             setProducts(prev => prev.filter(p => p._id !== productToDelete._id));
             showSuccessToast('Product deleted successfully!');
         } catch (err) {
             showErrorToast(err, 'Failed to delete product.');
         } finally {
-            closeModal(); // Use general close
+            closeModal();
             setIsDeleting(false);
         }
     };
@@ -205,8 +172,7 @@ const ProductListPage = () => {
     // Edit product functions
     const handleEditClick = (product) => {
         setEditRowId(product._id);
-        // Exclude quantity from editable form data if desired
-        setEditFormData({ name: product.name, sku: product.sku, price: product.price /*, quantity: product.quantity */ });
+        setEditFormData({ name: product.name, sku: product.sku, price: product.price });
     };
 
     const handleCancelClick = () => setEditRowId(null);
@@ -214,18 +180,16 @@ const ProductListPage = () => {
 
     const handleSaveClick = async (productId) => {
         setIsSavingEdit(true);
-        // Simple client-side check for edit form (can be expanded)
         if (!editFormData.name?.trim() || !editFormData.sku?.trim() || !editFormData.price || parseFloat(editFormData.price) <= 0) {
             showErrorToast({ message: "Name, SKU, and a valid positive Price are required." });
             setIsSavingEdit(false);
             return;
         }
-
         try {
-            const payload = { ...editFormData, price: parseFloat(editFormData.price) }; // Ensure price is number
+            const payload = { ...editFormData, price: parseFloat(editFormData.price) };
             const response = await api.patch(`/products/${productId}`, payload);
             setProducts(prev => prev.map((p) => p._id === productId ? response.data : p));
-            setEditRowId(null); // Exit edit mode
+            setEditRowId(null);
             showSuccessToast('Product updated successfully!');
         } catch (err) {
             showErrorToast(err, "Could not update product. SKU might already exist.");
@@ -251,7 +215,6 @@ const ProductListPage = () => {
             <TableContainer component={Paper}>
                 <Table sx={{ tableLayout: 'fixed' }}>
                     <TableHead>
-                         {/* Adjusted widths */}
                         <TableRow sx={{ '& th': { backgroundColor: '#f4f6f8', fontWeight: 'bold' } }}>
                             <TableCell sx={{ width: '25%' }}>Product Name</TableCell>
                             <TableCell sx={{ width: '20%' }}>SKU</TableCell>
@@ -264,12 +227,10 @@ const ProductListPage = () => {
                         {isLoading ? ( <TableSkeleton columns={5} rowsNum={5} /> ) : (
                             products.map((product) => (
                                 <TableRow key={product._id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                     {/* Inline Editing Cells */}
                                     <TableCell>{editRowId === product._id ? <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.name}</TableCell>
                                     <TableCell>{editRowId === product._id ? <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.sku}</TableCell>
                                     <TableCell>{editRowId === product._id ? <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth inputProps={{ step: "0.01" }} /> : product.price.toFixed(2)}</TableCell>
-                                    <TableCell>{product.quantity}</TableCell> {/* Keep quantity display-only */}
-                                     {/* Actions Cell */}
+                                    <TableCell>{product.quantity}</TableCell>
                                     <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         {editRowId === product._id ? (
                                             <>
@@ -290,7 +251,6 @@ const ProductListPage = () => {
                                 </TableRow>
                             ))
                         )}
-                         {/* Empty State */}
                         {!isLoading && products.length === 0 && (
                             <TableRow>
                                 <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
@@ -302,45 +262,20 @@ const ProductListPage = () => {
                 </Table>
             </TableContainer>
 
-            {/* Add/Remove Stock Modal */}
-            <Modal open={modalIsOpen} onClose={closeModal} aria-labelledby="stock-modal-title" closeAfterTransition>
-                <Fade in={modalIsOpen}>
-                    <Box sx={modalStyle}>
-                        <Typography id="stock-modal-title" variant="h6" component="h2">
-                            {modalType === 'add' ? 'Add Stock' : 'Remove Stock'} for {currentProduct?.name}
-                        </Typography>
-                        <Box component="form" onSubmit={handleModalSubmit} noValidate sx={{ mt: 2 }}>
-                            <TextField
-                                fullWidth
-                                autoFocus
-                                margin="dense"
-                                label="Quantity"
-                                type="number"
-                                value={quantity}
-                                onChange={(e) => {
-                                    setQuantity(e.target.value);
-                                    // --- NEW: Clear error on change ---
-                                    if (modalError) setModalError('');
-                                    // --- END NEW ---
-                                }}
-                                // --- UPDATED: Show validation error ---
-                                error={!!modalError}
-                                helperText={modalError || 'Enter a positive whole number.'}
-                                // --- END UPDATE ---
-                                required
-                                inputProps={{ min: 1, step: 1 }} // Input hints
-                            />
-                            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                                <Button onClick={closeModal} disabled={isModalLoading}>Cancel</Button>
-                                <Button type="submit" variant="contained" disabled={isModalLoading}>
-                                     {/* Show loading only for 'add' type directly */}
-                                    {isModalLoading && modalType === 'add' ? <CircularProgress size={24} color="inherit" /> : 'Confirm'}
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Box>
-                </Fade>
-            </Modal>
+            {/* --- USE REUSABLE MODAL for Add/Remove Stock --- */}
+            <AmountEntryModal
+                open={modalIsOpen && !openConfirmStockDialog} // Keep open if confirm dialog is active
+                onClose={closeModal}
+                onSubmit={handleModalSubmit}
+                title={`${modalType === 'add' ? 'Add' : 'Remove'} Stock for ${currentProduct?.name}`}
+                label="Quantity"
+                inputType="integer" // Specify integer input
+                isLoading={isModalLoading && modalType === 'add'} // Only show direct loading for 'add'
+                error={modalApiError} // Pass API error state
+                helperText="Enter a positive whole number."
+                submitText={modalType === 'remove' ? 'Next' : 'Confirm'} // Change button text for remove flow
+            />
+            {/* --- END REUSABLE MODAL USAGE --- */}
 
             {/* Delete Product Confirmation Dialog */}
             <ConfirmDialog
@@ -351,7 +286,7 @@ const ProductListPage = () => {
                 onCancel={closeModal}
                 confirmButtonText="Delete"
                 confirmColor="error"
-                isLoading={isDeleting} // Pass deleting state
+                isLoading={isDeleting}
             />
 
             {/* Remove Stock Confirmation Dialog */}
