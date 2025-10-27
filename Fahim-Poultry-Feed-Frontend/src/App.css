@@ -1,6 +1,7 @@
 :root {
     --sidebar-width-expanded: 240px;
     --sidebar-width-collapsed: 70px;
+    --header-height: 64px; /* Default MUI AppBar height */
 }
 
 body {
@@ -15,9 +16,19 @@ body {
     flex-direction: column;
 }
 
+/* --- ADDED: Header styles (though MUI handles most) --- */
+.app-header {
+    /* Optional: Add custom header styles if needed */
+}
+/* --- END ADDED --- */
+
+
 .main-content-wrapper {
     display: flex;
     flex-grow: 1;
+    /* --- ADDED: Padding top to account for fixed header --- */
+    padding-top: var(--header-height);
+    /* --- END ADDED --- */
 }
 
 .sidebar {
@@ -27,13 +38,17 @@ body {
     display: flex;
     flex-direction: column;
     position: fixed;
-    height: 100%;
-    top: 0;
+     /* --- CHANGED: Start below header --- */
+    height: calc(100% - var(--header-height));
+    top: var(--header-height);
+     /* --- END CHANGED --- */
     left: 0;
     transition: width 0.3s ease;
     flex-shrink: 0;
-    z-index: 1000;
+    z-index: 1000; /* Ensure sidebar is below header but above content */
     overflow-x: hidden;
+    /* --- ADDED: Remove border-bottom from header if it existed --- */
+    /* border-bottom: none; */ /* Uncomment if sidebar-header had a border */
 }
 
 .sidebar:hover {
@@ -45,6 +60,8 @@ body {
     padding: 2rem;
     margin-left: var(--sidebar-width-collapsed);
     transition: margin-left 0.3s ease;
+     /* --- REMOVED: Padding top is now on wrapper --- */
+    /* padding-top: calc(var(--header-height) + 2rem); */
 }
 
 .sidebar:hover~.main-content {
@@ -53,39 +70,34 @@ body {
 
 .main-content-fullscreen {
     flex-grow: 1;
+    /* --- REMOVED: Padding top is now on wrapper --- */
+    /* padding-top: var(--header-height); */
 }
 
-.sidebar-header {
-    padding: 1.5rem;
-    text-align: center;
-    border-bottom: 1px solid #2d3748;
-    flex-shrink: 0;
-}
+/* --- REMOVED Sidebar Header styles --- */
+/*
+.sidebar-header { ... }
+.sidebar-header h3 { ... }
+*/
+/* --- END REMOVAL --- */
 
-.sidebar-header h3,
-.sidebar-nav a span:not(.icon),
-.logout-button span:not(.icon) {
+/* --- Adjustments for spans within links --- */
+.sidebar-nav a span:not(.icon) {
     opacity: 0;
     white-space: nowrap;
     overflow: hidden;
     transition: opacity 0.3s ease;
 }
 
-.sidebar:hover .sidebar-header h3,
-.sidebar:hover .sidebar-nav a span:not(.icon),
-.sidebar:hover .logout-button span:not(.icon) {
+.sidebar:hover .sidebar-nav a span:not(.icon) {
     opacity: 1;
 }
+/* --- End Adjustments --- */
 
-.sidebar-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    color: #ffffff;
-}
 
 .sidebar-nav {
     flex-grow: 1;
-    padding-top: 0.5rem;
+    padding-top: 0.5rem; /* Adjust if needed */
 }
 
 .sidebar-nav ul {
@@ -97,7 +109,9 @@ body {
 .sidebar-nav a {
     display: flex;
     align-items: center;
-    padding: 1.5rem 1rem;
+    /* --- Adjusted padding --- */
+    padding: 1rem; /* Reduced vertical padding */
+    /* --- End Adjustment --- */
     color: #a0aec0;
     text-decoration: none;
     font-weight: 500;
@@ -122,67 +136,53 @@ body {
     min-width: 22px;
     height: 22px;
     flex-shrink: 0;
+    transition: margin-right 0.3s ease; /* Added transition */
 }
 
 .sidebar:hover .sidebar-nav .icon {
     margin-right: 1.1rem;
 }
 
-.sidebar-footer {
-    padding: 1.5rem 1rem;
-    border-top: 1px solid #2d3748;
-    flex-shrink: 0;
-}
+/* --- REMOVED Sidebar Footer styles --- */
+/*
+.sidebar-footer { ... }
+.logout-button { ... }
+.logout-button:hover { ... }
+.logout-button .icon { ... }
+.sidebar:hover .logout-button span:not(.icon) { ... }
+*/
+/* --- END REMOVAL --- */
 
-.logout-button {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.75rem 0;
-    background-color: transparent;
-    color: #a0aec0;
-    border: 1px solid #4a5568;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-}
 
-.logout-button:hover {
-    background-color: #e53e3e;
-    border-color: #e53e3e;
-    color: #ffffff;
-}
-
-.logout-button .icon {
-    margin-right: 0;
-}
-
+/* --- Media Query Adjustments --- */
 @media (max-width: 768px) {
+    /* Header might need adjustments for smaller screens if content overlaps */
+    /* .app-header {} */
+
     .sidebar,
     .sidebar:hover {
         width: var(--sidebar-width-collapsed) !important;
+        /* Sidebar still starts below header */
+        top: var(--header-height) !important;
+        height: calc(100% - var(--header-height)) !important;
     }
     .main-content,
     .sidebar:hover~.main-content {
         margin-left: var(--sidebar-width-collapsed) !important;
-        padding: 1rem;
+        padding: 1rem; /* Adjust padding if needed */
+        /* padding-top is handled by the wrapper */
     }
-    .sidebar-header h3,
-    .sidebar-nav a span:not(.icon),
-    .logout-button span:not(.icon) {
-        display: none;
+
+    /* Keep hiding text in collapsed sidebar */
+    .sidebar-nav a span:not(.icon) {
+        display: none !important; /* Ensure it stays hidden */
     }
     .sidebar-nav a {
         justify-content: center;
         padding: 1rem 0;
     }
-    .logout-button {
-        justify-content: center;
+    .sidebar-nav .icon {
+        margin-right: 0 !important; /* Center the icon */
     }
-    .logout-button .icon {
-        margin: 0;
-    }
+
 }

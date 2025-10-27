@@ -10,13 +10,26 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [userRole, setUserRole] = useState(null); // State for role
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // onAuthStateChanged is the recommended way to get the current user.
-        // It sets up a listener that runs whenever the user's sign-in state changes.
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => { // Make async
             setUser(currentUser);
+            if (currentUser) {
+                try {
+                    // Force refresh to get latest claims after potential backend update
+                    const idTokenResult = await currentUser.getIdTokenResult(true);
+                    // Assuming your custom claim is named 'role'
+                    setUserRole(idTokenResult.claims.role || null);
+                    console.log("User Claims:", idTokenResult.claims); // For debugging
+                } catch (error) {
+                    console.error("Error fetching user token/claims:", error);
+                    setUserRole(null); // Reset role on error
+                }
+            } else {
+                setUserRole(null); // Clear role on logout
+            }
             setIsLoading(false);
         });
 
@@ -24,26 +37,47 @@ export const AuthProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
-    // The login function now just stores the token for the API interceptor to use immediately.
-    // The onAuthStateChanged listener will handle setting the user state.
+    // Function to manually refresh user data including claims (optional)
+    const refreshUserData = async () => {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            try {
+                const idTokenResult = await currentUser.getIdTokenResult(true); // Force refresh
+                setUserRole(idTokenResult.claims.role || null);
+                // Force a re-render by updating the user state slightly if needed,
+                // though usually onAuthStateChanged should trigger eventually.
+                // setUser({...currentUser}); // Example if direct state update needed
+            } catch (error) {
+                console.error("Error refreshing user data:", error);
+            }
+        }
+    };
+
+
     const login = (token) => {
-        localStorage.setItem('firebaseIdToken', token);
+        // Storing token might not be strictly necessary if relying solely on onAuthStateChanged
+        // localStorage.setItem('firebaseIdToken', token);
+        // onAuthStateChanged will handle setting the user and role
     };
 
     const logout = async () => {
-        await signOut(auth); // Use Firebase's sign out method
-        localStorage.removeItem('firebaseIdToken');
+        await signOut(auth);
+        // localStorage.removeItem('firebaseIdToken'); // Remove if you were setting it
         setUser(null);
+        setUserRole(null); // Ensure role is cleared
     };
 
     const value = {
         user,
-        isAuthenticated: !!user, // True if user object exists, false if null
+        userRole, // Expose role
+        isAuthenticated: !!user,
         isLoading,
         login,
         logout,
+        refreshUserData // Expose refresh function
     };
 
+    // Render children only when loading is complete
     return (
         <AuthContext.Provider value={value}>
             {!isLoading && children}

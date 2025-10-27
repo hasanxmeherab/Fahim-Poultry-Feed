@@ -126,7 +126,7 @@ const LoginPage = () => {
                             />
                         </Typography>
                         <Typography variant="body1" color="text.secondary">
-                            Admin Login Portal
+                            Admin Login
                         </Typography>
                     </Box>
 
