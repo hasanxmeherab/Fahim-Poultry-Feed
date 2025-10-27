@@ -54,7 +54,7 @@ const EditWholesaleProductPage = lazy(() => import('./pages/EditWholesaleProduct
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 
 
-// --- UPDATED Header Component ---
+// --- Header Component (Unchanged) ---
 const Header = ({ handleLogout, isLoggingOut, user, userRole, onProfileClick }) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -70,10 +70,10 @@ const Header = ({ handleLogout, isLoggingOut, user, userRole, onProfileClick }) 
             <Toolbar sx={{ justifyContent: 'space-between' }}>
                 {/* Left Side: Title with Redirect to Home */}
                 <MuiLink component={RouterLink} to="/" underline="none" color="inherit">
-                    <Typography 
-                        variant="h6" 
-                        noWrap 
-                        component="div" 
+                    <Typography
+                        variant="h6"
+                        noWrap
+                        component="div"
                         sx={{ fontWeight: 'bold', color: 'primary.main', cursor: 'pointer' }}
                     >
                         Fahim Poultry Feed
@@ -129,7 +129,7 @@ const Header = ({ handleLogout, isLoggingOut, user, userRole, onProfileClick }) 
 // --- END Header Component ---
 
 
-// Sidebar Component (Unchanged)
+// --- Sidebar Component (Unchanged) ---
 const Sidebar = () => {
     return (
         <aside className="sidebar no-print">
@@ -148,15 +148,40 @@ const Sidebar = () => {
     );
 };
 
-// Footer Component (Unchanged)
+// --- Footer Component (Unchanged) ---
 const Footer = () => (
-    <Box component="footer" sx={{ py: 1.5, px: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#f7f9fc', textAlign: 'center', flexShrink: 0 }} className="no-print">
-        <Typography variant="body2" color="text.secondary"> © {new Date().getFullYear()} Fahim Poultry Feed | Developed by Meherab Hasan Fahim </Typography>
+    <Box
+        component="footer"
+        sx={{
+            py: 1.5,
+            px: 2,
+            borderTop: '1px solid #e0e0e0',
+            bgcolor: '#f7f9fc',
+            flexShrink: 0,
+            mt: 'auto', /* Push footer down */
+            // Use Flexbox to separate items
+            display: 'flex',
+            justifyContent: 'space-between', // Puts space between items
+            alignItems: 'center', // Vertically center items
+            flexWrap: 'wrap', // Allow wrapping on small screens
+            gap: 1 // Add some gap for wrapping
+        }}
+        className="no-print"
+    >
+        {/* Left Side */}
+        <Typography variant="body2" color="text.secondary">
+             © {new Date().getFullYear()} Fahim Poultry Feed | All rights reserved
+        </Typography>
+        {/* Right Side */}
+        <Typography variant="body2" color="text.secondary">
+            Developed by Meherab Hasan Fahim
+        </Typography>
     </Box>
 );
+// --- END Footer Component ---
 
 
-// Main App Structure (Unchanged)
+// --- AppContent Structure (REMOVED Toolbar Spacer) ---
 const AppContent = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -194,41 +219,50 @@ const AppContent = () => {
 
             <div className="main-content-wrapper">
                 {showLayout && <Sidebar />}
+                {/* The <main> element now also contains the Footer */}
                 <main className={showLayout ? "main-content" : "main-content-fullscreen"}>
-                    {showLayout && <Toolbar />}
-                    <Suspense fallback={<LoadingSpinner />}>
-                        <Routes>
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/receipt/:transactionId" element={<ReceiptPage />} />
-                            <Route path="/receipt" element={<Typography sx={{ p: 3, textAlign: 'center', color: 'error.main' }}>Error: Receipt ID missing in URL.</Typography>} />
+                    {/* Toolbar spacer REMOVED */}
+                    {/* {showLayout && <Toolbar />} */}
 
-                            <Route element={<ProtectedRoute />}>
-                                <Route path="/" element={<DashboardPage />} />
-                                <Route path="/customers" element={<CustomerListPage />} />
-                                <Route path="/add-customer" element={<AddCustomerPage />} />
-                                <Route path="/edit-customer/:id" element={<EditCustomerPage />} />
-                                <Route path="/customers/:id" element={<CustomerDetailsPage />} />
-                                <Route path="/inventory" element={<ProductListPage />} />
-                                <Route path="/add-product" element={<AddProductPage />} />
-                                <Route path="/edit-product/:id" element={<EditProductPage />} />
-                                <Route path="/make-sale" element={<MakeSalePage />} />
-                                <Route path="/history" element={<HistoryPage />} />
-                                <Route path="/reports/sales" element={<SalesReportPage />} />
-                                <Route path="/reports/batch/:id" element={<BatchReportPage />} />
-                                <Route path="/wholesale" element={<WholesalePage />} />
-                                <Route path="/add-wholesale-buyer" element={<AddWholesaleBuyerPage />} />
-                                <Route path="/edit-wholesale-buyer/:id" element={<EditWholesaleBuyerPage />} />
-                                <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
-                                <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
-                                <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
-                            </Route>
+                    {/* Page Content Wrapper - Make this grow */}
+                    <Box sx={{ flexGrow: 1, pt: 2 }}> {/* Added slight top padding directly here */}
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <Routes>
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/receipt/:transactionId" element={<ReceiptPage />} />
+                                <Route path="/receipt" element={<Typography sx={{ p: 3, textAlign: 'center', color: 'error.main' }}>Error: Receipt ID missing in URL.</Typography>} />
 
-                            <Route path="*" element={<ErrorPage />} />
-                        </Routes>
-                    </Suspense>
+                                <Route element={<ProtectedRoute />}>
+                                    <Route path="/" element={<DashboardPage />} />
+                                    <Route path="/customers" element={<CustomerListPage />} />
+                                    <Route path="/add-customer" element={<AddCustomerPage />} />
+                                    <Route path="/edit-customer/:id" element={<EditCustomerPage />} />
+                                    <Route path="/customers/:id" element={<CustomerDetailsPage />} />
+                                    <Route path="/inventory" element={<ProductListPage />} />
+                                    <Route path="/add-product" element={<AddProductPage />} />
+                                    <Route path="/edit-product/:id" element={<EditProductPage />} />
+                                    <Route path="/make-sale" element={<MakeSalePage />} />
+                                    <Route path="/history" element={<HistoryPage />} />
+                                    <Route path="/reports/sales" element={<SalesReportPage />} />
+                                    <Route path="/reports/batch/:id" element={<BatchReportPage />} />
+                                    <Route path="/wholesale" element={<WholesalePage />} />
+                                    <Route path="/add-wholesale-buyer" element={<AddWholesaleBuyerPage />} />
+                                    <Route path="/edit-wholesale-buyer/:id" element={<EditWholesaleBuyerPage />} />
+                                    <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
+                                    <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
+                                    <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
+                                </Route>
+
+                                <Route path="*" element={<ErrorPage />} />
+                            </Routes>
+                        </Suspense>
+                    </Box> {/* END ADDED: flexGrow Box */}
+
+
+                    {/* Footer moved inside the main content area */}
+                    {showLayout && <Footer />}
                 </main>
             </div>
-            {showLayout && <Footer />}
 
             <ProfileEditModal
                 isOpen={isProfileModalOpen}
@@ -243,3 +277,4 @@ function App() {
 }
 
 export default App;
+
