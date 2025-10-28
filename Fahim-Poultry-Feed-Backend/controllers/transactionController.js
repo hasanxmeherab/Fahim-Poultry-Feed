@@ -2,7 +2,7 @@ const Transaction = require('../models/transactionModel');
 const mongoose = require('mongoose');
 
 // Helper function to get start and end of a day in UTC based on a local date string and offset
-// Example: getDayBoundsUTC('2025-10-26', '+06:00') -> { startUTC, endUTC }
+// This function correctly handles the time zone conversion for MongoDB storage (UTC).
 function getDayBoundsUTC(dateString, timezoneOffset = '+06:00') {
     // Construct date strings representing start and end of day in the target timezone
     const startOfDayLocalString = `${dateString}T00:00:00.000${timezoneOffset}`;
@@ -15,7 +15,6 @@ function getDayBoundsUTC(dateString, timezoneOffset = '+06:00') {
     // Validate if dates were parsed correctly
     if (isNaN(startUTC.getTime()) || isNaN(endUTC.getTime())) {
         console.error(`Invalid date string or offset provided: ${dateString}, ${timezoneOffset}`);
-        // Return null or throw an error based on how you want to handle invalid input
         return null;
     }
 
@@ -23,9 +22,8 @@ function getDayBoundsUTC(dateString, timezoneOffset = '+06:00') {
 }
 
 
-// --- NEW FUNCTION ---
-// @desc   Get a single transaction by ID, populated for receipt generation
-// @route  GET /api/transactions/:id
+// @desc   Get a single transaction by ID, populated for receipt generation
+// @route  GET /api/transactions/:id
 const getTransactionById = async (req, res, next) => {
     const { id } = req.params;
 
@@ -57,11 +55,10 @@ const getTransactionById = async (req, res, next) => {
         next(error); // Pass errors to the central handler
     }
 };
-// --- END NEW FUNCTION ---
 
 
-// @desc   Get all transactions with optional date range filter
-// @route  GET /api/transactions
+// @desc   Get all transactions with optional date range filter
+// @route  GET /api/transactions
 const getTransactions = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15; // Allow overriding limit via query
@@ -70,17 +67,22 @@ const getTransactions = async (req, res, next) => {
         const filter = {};
         const { startDate, endDate } = req.query;
 
-        // Date Range Filter (Using UTC start/end assumptions)
+        // --- FIX: Date Range Filter (Use BDT offset for local-aware filtering) ---
         if (startDate && endDate) {
-            const start = new Date(`${startDate}T00:00:00.000Z`);
-            const end = new Date(`${endDate}T23:59:59.999Z`);
-             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                filter.createdAt = { $gte: start, $lte: end };
+            // Use UTC+06:00 offset to define the correct MongoDB (UTC) boundaries 
+            // corresponding to the requested local BDT date range.
+            const startBounds = getDayBoundsUTC(startDate, '+06:00');
+            const endBounds = getDayBoundsUTC(endDate, '+06:00');
+             
+            if (startBounds && endBounds) {
+                // Set the filter to include transactions between the start of the first day 
+                // and the very end of the last day, as defined in BDT.
+                filter.createdAt = { $gte: startBounds.startUTC, $lte: endBounds.endUTC };
             } else {
                  console.warn("Invalid startDate or endDate received in getTransactions:", startDate, endDate);
-                 // Optionally return a 400 error here if dates are invalid
             }
         }
+        // --- END FIX ---
 
         const count = await Transaction.countDocuments(filter);
         const transactions = await Transaction.find(filter)
@@ -102,8 +104,8 @@ const getTransactions = async (req, res, next) => {
     }
 };
 
-// @desc   Get transactions for a specific batch with optional date filter
-// @route  GET /api/transactions/batch/:batchId
+// @desc   Get transactions for a specific batch with optional date filter
+// @route  GET /api/transactions/batch/:batchId
 const getTransactionsByBatch = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15;
@@ -175,8 +177,8 @@ const getTransactionsByBatch = async (req, res, next) => {
     }
 };
 
-// @desc   Get transactions for a specific wholesale buyer with optional date filter
-// @route  GET /api/transactions/wholesale-buyer/:buyerId
+// @desc   Get transactions for a specific wholesale buyer with optional date filter
+// @route  GET /api/transactions/wholesale-buyer/:buyerId
 const getTransactionsForBuyer = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 15;
@@ -209,7 +211,6 @@ const getTransactionsForBuyer = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .limit(limit)
             .skip(limit * (page - 1));
-            // No populate needed here usually as it's for a specific buyer's history
 
         res.status(200).json({
             transactions,
