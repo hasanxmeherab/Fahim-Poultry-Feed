@@ -14,6 +14,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import HistoryIcon from '@mui/icons-material/History';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircle from '@mui/icons-material/AccountCircle';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 // Core Components & Context
 import ProtectedRoute from './components/ProtectedRoute';
@@ -52,7 +53,7 @@ const WholesaleBuyerDetailsPage = lazy(() => import('./pages/WholesaleBuyerDetai
 const AddWholesaleProductPage = lazy(() => import('./pages/AddWholesaleProductPage'));
 const EditWholesaleProductPage = lazy(() => import('./pages/EditWholesaleProductPage'));
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
-
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
 
 // --- Header Component (Unchanged) ---
 const Header = ({ handleLogout, isLoggingOut, user, userRole, onProfileClick }) => {
@@ -131,6 +132,8 @@ const Header = ({ handleLogout, isLoggingOut, user, userRole, onProfileClick }) 
 
 // --- Sidebar Component (Unchanged) ---
 const Sidebar = () => {
+    const { userRole } = useAuth(); // Use the role from AuthContext
+    const isAdmin = userRole === 'admin';
     return (
         <aside className="sidebar no-print">
             <nav className="sidebar-nav">
@@ -142,6 +145,11 @@ const Sidebar = () => {
                     <li><NavLink to="/wholesale"><span className="icon"><StorefrontIcon /></span><span>Wholesale</span></NavLink></li>
                     <li><NavLink to="/reports/sales"><span className="icon"><AssessmentIcon /></span><span>Sales Report</span></NavLink></li>
                     <li><NavLink to="/history"><span className="icon"><HistoryIcon /></span><span>History</span></NavLink></li>
+                    {isAdmin && (
+                        <li><NavLink to="/admin/users"><span className="icon">
+                             <AdminPanelSettingsIcon /> {/* Need to import this icon */}
+                             </span><span>User Management</span></NavLink></li>
+                    )}
                 </ul>
             </nav>
         </aside>
@@ -251,6 +259,7 @@ const AppContent = () => {
                                     <Route path="/wholesale-buyers/:id" element={<WholesaleBuyerDetailsPage />} />
                                     <Route path="/add-wholesale-product" element={<AddWholesaleProductPage />} />
                                     <Route path="/edit-wholesale-product/:id" element={<EditWholesaleProductPage />} />
+                                    <Route path="/admin/users" element={<UserManagementPage />} />
                                 </Route>
 
                                 <Route path="*" element={<ErrorPage />} />

@@ -1,51 +1,43 @@
-    const express = require('express');
+const express = require('express');
+const router = express.Router();
 
-    const {
-        getCustomers,
-        getCustomer,
-        createCustomer,
-        addDeposit,
-        makeWithdrawal,
-        deleteCustomer,
-        updateCustomer,
-        buyFromCustomer
-    } = require('../controllers/customerController');
-    const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const {
+    getCustomers,
+    getCustomer,
+    createCustomer,
+    addDeposit,
+    makeWithdrawal,
+    deleteCustomer,
+    updateCustomer,
+    buyFromCustomer
+} = require('../controllers/customerController');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const requireRole = require('../middleware/requireRole');
 
-    // --- UPDATED IMPORTS ---
-    const {
-        createCustomerRules,
-        updateCustomerRules,
-        amountRules, // Import amount rules
-        buyBackRules // Import buy back rules
-     } = require('../validation/customer.validation.js'); // Specific customer rules
-    const { validate } = require('../validation/shared.validation.js'); // Shared validate helper
-    // --- END UPDATED IMPORTS ---
+// --- Define Role Checks ---
+const requireViewer = requireRole('viewer'); // Read access
+const requireClerk = requireRole('clerk');   // Operational/Write access
+// --- End Role Checks ---
 
-    const router = express.Router();
+// Apply auth middleware to all customer routes first
+router.use(firebaseAuthMiddleware);
 
-    // Apply auth middleware to all customer routes
-    router.use(firebaseAuthMiddleware);
+// --- Routes for the customer collection (/api/customers) ---
+router.route('/')
+    .get(requireViewer, getCustomers) // Viewer or higher can list
+    .post(requireClerk, createCustomer); // Clerk or Admin can create
 
-    // --- Routes for the customer collection (/api/customers) ---
-    router.route('/')
-        .get(getCustomers)
-        .post(createCustomerRules(), validate, createCustomer); // Added validation
+// --- Routes for a single customer by ID (/api/customers/:id) ---
+router.route('/:id')
+    .get(requireViewer, getCustomer)     // Viewer or higher can view details
+    .patch(requireClerk, updateCustomer) // Clerk or Admin can edit details
+    .delete(requireClerk, deleteCustomer); // Clerk or Admin can delete
 
-    // --- Routes for a single customer by ID (/api/customers/:id) ---
-    router.route('/:id')
-        .get(getCustomer)
-        .patch(updateCustomerRules(), validate, updateCustomer) // Added validation
-        .delete(deleteCustomer); // Add validation if needed (e.g., param('id').isMongoId())
+// --- Routes for specific financial actions (Clerk or Admin only) ---
+router.patch('/:id/deposit', requireClerk, addDeposit);
+router.patch('/:id/withdrawal', requireClerk, makeWithdrawal);
 
-    // --- Routes for specific financial actions ---
-    // Added amount validation
-    router.patch('/:id/deposit', amountRules(), validate, addDeposit);
-    router.patch('/:id/withdrawal', amountRules(), validate, makeWithdrawal);
+// --- Route for buy back action (Clerk or Admin only) ---
+router.post('/buyback', requireClerk, buyFromCustomer);
 
-    // --- Route for buy back action ---
-    // Added buy back validation
-    router.post('/buyback', buyBackRules(), validate, buyFromCustomer);
-
-    module.exports = router;
-    
+module.exports = router;

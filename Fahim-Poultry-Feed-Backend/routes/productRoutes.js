@@ -1,4 +1,5 @@
 const express = require('express');
+const router = express.Router();
 const {
   checkSkuExists,
   getProducts,
@@ -10,31 +11,32 @@ const {
   deleteProduct,
 } = require('../controllers/productController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const requireRole = require('../middleware/requireRole');
 
-// --- UPDATED IMPORTS ---
-const {
-  createProductRules,
-  updateProductRules,
-  stockUpdateRules,
-} = require('../validation/product.validation.js'); // Import from the new file
-const { validate } = require('../validation/shared.validation.js'); // Import validate helper
-// --- END UPDATED IMPORTS ---
+// --- Define Role Checks ---
+const requireViewer = requireRole('viewer'); // Read access
+const requireClerk = requireRole('clerk');   // Operational/Write access
+// --- End Role Checks ---
 
-const router = express.Router();
+// Apply auth middleware to all product routes first
+router.use(firebaseAuthMiddleware);
 
-// --- Routes remain the same, using the imported rules and validate ---
+// --- Collection Routes ---
 router.route('/')
-    .get(firebaseAuthMiddleware, getProducts)
-    .post(firebaseAuthMiddleware, createProductRules(), validate, createProduct);
+    .get(requireViewer, getProducts)    // Viewer or higher can list
+    .post(requireClerk, createProduct); // Clerk or Admin can create
 
-router.get('/check-sku', firebaseAuthMiddleware, checkSkuExists);
+// Check SKU endpoint (needs viewer access minimum)
+router.get('/check-sku', requireViewer, checkSkuExists);
 
+// --- Single Product Routes ---
 router.route('/:id')
-    .get(firebaseAuthMiddleware, getProduct)
-    .patch(firebaseAuthMiddleware, updateProductRules(), validate, updateProduct)
-    .delete(firebaseAuthMiddleware, deleteProduct);
+    .get(requireViewer, getProduct)     // Viewer or higher can view detail
+    .patch(requireClerk, updateProduct) // Clerk or Admin can edit
+    .delete(requireClerk, deleteProduct); // Clerk or Admin can delete
 
-router.patch('/:id/addstock', firebaseAuthMiddleware, stockUpdateRules(), validate, addStock);
-router.patch('/:id/removestock', firebaseAuthMiddleware, stockUpdateRules(), validate, removeStock);
+// --- Stock Management Routes (Clerk or Admin only) ---
+router.patch('/:id/addstock', requireClerk, addStock);
+router.patch('/:id/removestock', requireClerk, removeStock);
 
 module.exports = router;

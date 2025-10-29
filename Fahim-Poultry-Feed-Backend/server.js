@@ -16,6 +16,7 @@ const saleRoutes = require('./routes/saleRoutes');
 const wholesaleBuyerRoutes = require('./routes/wholesaleBuyerRoutes');
 const wholesaleProductRoutes = require('./routes/wholesaleProductRoutes');
 const profileRoutes = require('./routes/profileRoutes'); // <-- Import the new profile routes
+const userRoutes = require('./routes/userRoutes');
 
 const admin = require('firebase-admin');
 
@@ -72,6 +73,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/wholesale-buyers', wholesaleBuyerRoutes);
 app.use('/api/wholesale-products', wholesaleProductRoutes);
 app.use('/api/profile', profileRoutes); // <-- Mount the new profile routes
+app.use('/api/users', userRoutes);
 
 // --- Central Error Handling Middleware ---
 // ... existing error handler code ...

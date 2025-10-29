@@ -256,4 +256,3 @@ const MakeSalePage = () => {
 };
 
 export default MakeSalePage;
-

@@ -1,23 +1,22 @@
-    const express = require('express');
-    const router = express.Router();
-    const { createSale, getSales, createWholesaleSale } = require('../controllers/saleController');
-    const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const express = require('express');
+const router = express.Router();
+const { createSale, getSales, createWholesaleSale } = require('../controllers/saleController');
+const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
+const requireRole = require('../middleware/requireRole');
 
-    // --- UPDATED IMPORTS ---
-    const {
-        createSaleRules,
-        createWholesaleSaleRules
-    } = require('../validation/sale.validation.js'); // Import from new file
-    const { validate } = require('../validation/shared.validation.js'); // Import validate helper
-    // --- END UPDATED IMPORTS ---
+// --- Define Role Checks ---
+const requireViewer = requireRole('viewer');
+const requireClerk = requireRole('clerk');
+// --- End Role Checks ---
 
-    // Apply validation to the POST route for regular sales
-    router.route('/')
-        .get(firebaseAuthMiddleware, getSales)
-        .post(firebaseAuthMiddleware, createSaleRules(), validate, createSale);
+// Apply auth middleware to all sale routes first
+router.use(firebaseAuthMiddleware);
 
-    // Apply validation to the POST route for wholesale sales
-    router.post('/wholesale', firebaseAuthMiddleware, createWholesaleSaleRules(), validate, createWholesaleSale);
+router.route('/')
+    .get(requireViewer, getSales)       // Viewer or higher can view history
+    .post(requireClerk, createSale);    // Clerk or Admin can create sales
 
-    module.exports = router;
-    
+// Wholesale Sales (Clerk or Admin only)
+router.post('/wholesale', requireClerk, createWholesaleSale);
+
+module.exports = router;
