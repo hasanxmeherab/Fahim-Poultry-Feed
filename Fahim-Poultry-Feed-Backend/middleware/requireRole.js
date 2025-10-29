@@ -1,5 +1,5 @@
 const requireRole = (requiredRole) => (req, res, next) => {
-    const userRole = req.user?.role || 'unauthenticated'; // Default to 'unauthenticated'
+    const userRole = req.user?.role || 'unauthenticated';
 
     // Hierarchy map: Admin > Operator > Viewer
     const roleHierarchy = {
@@ -16,7 +16,6 @@ const requireRole = (requiredRole) => (req, res, next) => {
         return next();
     }
 
-    // Access denied if the user's level is below the required level
     const error = new Error(`Access Denied: Insufficient privileges. Required role: ${requiredRole.toUpperCase()}.`);
     error.statusCode = 403;
     return next(error);

@@ -12,7 +12,7 @@ const getAllUsers = async (req, res, next) => {
             uid: userRecord.uid,
             email: userRecord.email,
             displayName: userRecord.displayName,
-            role: userRecord.customClaims?.role || 'viewer', // Default to viewer
+            role: userRecord.customClaims?.role || 'viewer', // Default still 'viewer'
             metadata: { 
                 lastSignInTime: userRecord.metadata.lastSignInTime,
                 creationTime: userRecord.metadata.creationTime
@@ -34,15 +34,15 @@ const updateUserRole = async (req, res, next) => {
     const { role } = req.body;
     const callerUid = req.user.uid; 
 
-    // Prevent an admin from demoting or deleting themselves (safety check)
+    // Prevent an admin from modifying themselves
     if (uid === callerUid) {
         const error = new Error("Cannot modify your own administrative role.");
         error.statusCode = 400;
         return next(error);
     }
 
-    // Basic validation
-    if (!role || !['admin', 'clerk', 'viewer'].includes(role)) {
+    // Basic validation updated to include 'operator'
+    if (!role || !['admin', 'operator', 'viewer'].includes(role)) {
         const error = new Error('Invalid role specified.');
         error.statusCode = 400;
         return next(error);
@@ -70,7 +70,8 @@ const updateUserRole = async (req, res, next) => {
 // @route   POST /api/users
 // @access  Private/Admin
 const createUser = async (req, res, next) => {
-    const { email, password, displayName, role = 'clerk' } = req.body; // Default role to 'clerk'
+    // Default role is now 'operator'
+    const { email, password, displayName, role = 'operator' } = req.body; 
 
     // Basic validation
     if (!email || !password || !displayName) {
@@ -78,7 +79,8 @@ const createUser = async (req, res, next) => {
         error.statusCode = 400;
         return next(error);
     }
-    if (!['admin', 'clerk', 'viewer'].includes(role)) {
+    // Validation updated to include 'operator'
+    if (!['admin', 'operator', 'viewer'].includes(role)) { 
         const error = new Error('Invalid role specified.');
         error.statusCode = 400;
         return next(error);

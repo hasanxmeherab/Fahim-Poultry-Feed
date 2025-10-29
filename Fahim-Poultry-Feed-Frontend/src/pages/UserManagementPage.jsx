@@ -69,7 +69,15 @@ const UserManagementPage = () => {
 
     // Callback function to refresh list after creating a new user
     const handleUserCreated = () => {
-         queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+        queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+    };
+
+    // Helper to capitalize first letter for display
+    const formatRoleName = (role) => {
+        if (role === 'operator') return 'Operator';
+        if (role === 'viewer') return 'Viewer';
+        if (role === 'admin') return 'Admin';
+        return role;
     };
 
     // Determine the current logged-in user's UID (for safety check in UI)
@@ -128,16 +136,15 @@ const UserManagementPage = () => {
                                             onChange={handleRoleChange(user.uid)}
                                             label="Role"
                                         >
-                                            <MenuItem value="admin">Admin</MenuItem>
-                                            <MenuItem value="clerk">Clerk</MenuItem>
-                                            <MenuItem value="viewer">Viewer</MenuItem>
+                                            <MenuItem value="admin">{formatRoleName('admin')}</MenuItem>
+                                            <MenuItem value="operator">{formatRoleName('operator')}</MenuItem> 
+                                            <MenuItem value="viewer">{formatRoleName('viewer')}</MenuItem>
                                         </Select>
                                      </FormControl>
                                 </TableCell>
                                 <TableCell>
                                     {user.uid === currentAdminUid ? 
                                         <Typography variant="caption" color="primary"> (You)</Typography> :
-                                        // You could add a Delete User button here, which would call a DELETE /api/users/:uid endpoint
                                         <Button size="small" color="error" variant="outlined" disabled>Delete</Button>
                                     }
                                 </TableCell>

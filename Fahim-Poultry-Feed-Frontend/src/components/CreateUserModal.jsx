@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
-import { modalStyle } from '../../styles/commonStyles.js';
+// The import path below is based on your directory structure clarification:
+import { modalStyle } from '../../styles/commonStyles.js'; 
+
 // MUI Imports
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
@@ -9,11 +11,13 @@ import {
 } from '@mui/material';
 
 const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
+    // NOTE: Internal role identifier is 'operator', but the old code still uses 'clerk' as the default/value.
+    // We update the state initialization and role options here.
     const [formData, setFormData] = useState({ 
         email: '', 
         password: '', 
         displayName: '', 
-        role: 'clerk' // Default new users to 'clerk'
+        role: 'operator' // <-- Initial default role set to 'operator'
     });
     const [formErrors, setFormErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,7 +25,7 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
     // Reset state on open/close
     useEffect(() => {
         if (isOpen) {
-            setFormData({ email: '', password: '', displayName: '', role: 'clerk' });
+            setFormData({ email: '', password: '', displayName: '', role: 'operator' }); 
             setFormErrors({});
         }
     }, [isOpen]);
@@ -36,7 +40,6 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
     const validateForm = () => {
         const errors = {};
         if (!formData.email.trim()) errors.email = 'Email is required.';
-        // Firebase Auth requires a minimum of 6 characters for the password
         if (!formData.password.trim() || formData.password.length < 6) errors.password = 'Password must be at least 6 characters.';
         if (!formData.displayName.trim()) errors.displayName = 'Name is required.';
         setFormErrors(errors);
@@ -49,11 +52,11 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
 
         setIsSubmitting(true);
         try {
-            // POST to the protected /api/users route (backend handles Firebase creation)
+            // POST request sends role: 'operator' or 'admin' or 'viewer'
             const response = await api.post('/users', formData);
             
             showSuccessToast(`User ${response.data.displayName} created successfully.`);
-            onUserCreated(); // Callback to refresh the user list in the parent (UserManagementPage)
+            onUserCreated();
             onClose();
 
         } catch (err) {
@@ -72,7 +75,7 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
             PaperProps={{ 
                 component: 'form', 
                 onSubmit: handleSubmit,
-                sx: modalStyle // Apply the common modal style here
+                sx: modalStyle
             }}
         >
             <DialogTitle sx={{ fontWeight: 'bold' }}>Create New User Account</DialogTitle>
@@ -81,7 +84,7 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
                     <TextField
                         fullWidth autoFocus margin="dense" name="displayName" label="Full Name"
                         value={formData.displayName} onChange={handleChange} required
-                        error={!!formErrors.displayName} helperText={formErrors.displayName || ''}
+                        error={!!formErrors.displayName} helperHelperText={formErrors.displayName || ''}
                         disabled={isSubmitting} sx={{ mb: 2 }}
                     />
                     <TextField
@@ -103,7 +106,7 @@ const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
                             name="role" label="Initial Role" value={formData.role}
                             onChange={handleChange}
                         >
-                            <MenuItem value="clerk">Manager</MenuItem>
+                            <MenuItem value="operator">Operator</MenuItem> 
                             <MenuItem value="viewer">Viewer</MenuItem>
                             <MenuItem value="admin">Admin</MenuItem>
                         </Select>
