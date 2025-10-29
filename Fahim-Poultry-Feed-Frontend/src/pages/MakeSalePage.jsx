@@ -31,6 +31,7 @@ const MakeSalePage = () => {
     const [isRandomCustomer, setIsRandomCustomer] = useState(false);
     const [isCashPayment, setIsCashPayment] = useState(false);
     const [randomCustomerName, setRandomCustomerName] = useState('');
+    const [saleSubmitError, setSaleSubmitError] = useState(''); // <-- NEW STATE FOR GENERAL SUBMISSION ERROR
 
     // State for Async Customer Search
     const [customerOpen, setCustomerOpen] = useState(false);
@@ -124,28 +125,35 @@ const MakeSalePage = () => {
         if (formErrors.items) setFormErrors(prev => ({ ...prev, items: '' }));
     };
 
-    // --- Sale Submission Mutation (with CONSOLE LOGS) ---
+    // --- Sale Submission Mutation ---
     const submitSaleMutation = useMutation({
         mutationFn: createSaleApi,
-        onSuccess: (createdTransaction) => { // createdTransaction is now JSON data
-            // --- ADD LOGS ---
+        onSuccess: (createdTransaction) => {
             console.log("Submit Sale Mutation onSuccess - Received data:", createdTransaction);
-            // --- END LOGS ---
             showSuccessToast('Sale completed successfully!');
+            setSaleSubmitError(''); // Clear general error on success
+
             try {
-                const transactionId = createdTransaction?._id; // Should work now
-                // --- ADD LOGS ---
+                const transactionId = createdTransaction?._id; 
                 console.log("Submit Sale Mutation extracted transactionId:", transactionId);
-                 // --- END LOGS ---
                 if (!transactionId) throw new Error("Created transaction missing ID for receipt.");
 
                 // Prepare receipt data locally
                 const customerNameForReceipt = isRandomCustomer ? (createdTransaction.randomCustomerName || 'Random Customer') : selectedCustomer?.name || 'Customer';
-                const receiptData = { type: 'sale', customerName: customerNameForReceipt, items: saleItems.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })), totalAmount: createdTransaction.amount, balanceBefore: createdTransaction.balanceBefore, balanceAfter: createdTransaction.balanceAfter, paymentMethod: createdTransaction.paymentMethod, date: createdTransaction.createdAt };
+                // Note: The backend returns full transaction data, but this client-side receipt prep relies on local saleItems for product names.
+                const receiptData = { 
+                    type: 'sale', 
+                    customerName: customerNameForReceipt, 
+                    items: saleItems.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })), 
+                    totalAmount: createdTransaction.amount, 
+                    balanceBefore: createdTransaction.balanceBefore, 
+                    balanceAfter: createdTransaction.balanceAfter, 
+                    paymentMethod: createdTransaction.paymentMethod, 
+                    date: createdTransaction.createdAt 
+                };
 
                 // --- Save temporarily and Open URL with ID ---
-                console.log('Saving temporary receipt data to sessionStorage:', receiptData);
-                sessionStorage.setItem('receiptData', JSON.stringify(receiptData)); // Keep temp save
+                sessionStorage.setItem('receiptData', JSON.stringify(receiptData)); 
                 window.open(`/receipt/${transactionId}`, '_blank');
 
             } catch (receiptError) {
@@ -153,28 +161,47 @@ const MakeSalePage = () => {
                 showErrorToast({ message: `Sale saved, but failed to open receipt: ${receiptError.message}` });
             }
 
-            // Invalidate queries
+            // Invalidate necessary queries
             if (!isRandomCustomer && selectedCustomer?._id) {
                 queryClient.invalidateQueries({ queryKey: ['customer', selectedCustomer._id] });
                 queryClient.invalidateQueries({ queryKey: ['batches', selectedCustomer._id] });
-                if (createdTransaction.batch) { // Invalidate only if batch exists
+                if (createdTransaction.batch) { 
                     queryClient.invalidateQueries({ queryKey: ['transactions', createdTransaction.batch] });
                 }
             }
-            queryClient.invalidateQueries({ queryKey: ['transactions'] }); // Global history
-            queryClient.invalidateQueries({ queryKey: ['products'] }); // Inventory list
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
             queryClient.invalidateQueries({ queryKey: ['dashboardCharts'] });
 
             navigate('/'); // Navigate after success
         },
-        onError: (err) => { /* ... keep error handling ... */ }
+        onError: (err) => {
+            let errorMessage = 'Failed to complete sale.'; 
+
+            if (err.response?.status === 403) {
+                // Specific check for Forbidden error (RBAC failure)
+                errorMessage = "Permission Denied: Your role cannot make sales. Contact Admin.";
+            } else if (err.response?.data?.error) {
+                // General backend error message (e.g., from express-validator/controller)
+                errorMessage = err.response.data.error;
+            } else if (err.response?.data?.message) {
+                 errorMessage = err.response.data.message;
+            }
+
+            // Set the general error state for display below the form
+            setSaleSubmitError(errorMessage); 
+            // Also display a global toast
+            showErrorToast({ message: errorMessage }, 'Sale Failed');
+        }
     });
 
     // --- Submit Handler ---
     const handleSubmitSale = () => {
-         if (!validateSubmitSale()) return;
-        setFormErrors({}); // Clear errors
+        if (!validateSubmitSale()) return;
+        setFormErrors({}); // Clear specific form errors
+        setSaleSubmitError(''); // Clear previous general submission error
+
         const saleData = {
             isRandomCustomer: isRandomCustomer,
             isCashPayment: isCashPayment,
@@ -245,7 +272,10 @@ const MakeSalePage = () => {
                     </Table>
                 </TableContainer>
                 {saleItems.length > 0 && ( <> <Divider sx={{ my: 2, borderStyle: 'dashed' }} /> <Typography variant="h5" sx={{ textAlign: 'right', fontWeight: 'bold' }}>Total: TK {totalAmount.toFixed(2)}</Typography> </> )}
-                {formErrors.general && <Typography color="error" sx={{ mt: 2 }}>{formErrors.general}</Typography>}
+                
+                {/* Display General Submission Error Here */}
+                {saleSubmitError && <Typography color="error" sx={{ mt: 2 }}>{saleSubmitError}</Typography>} 
+
                 <FormControlLabel control={<Checkbox checked={isCashPayment} onChange={(e) => setIsCashPayment(e.target.checked)} disabled={isRandomCustomer || submitSaleMutation.isPending} />} label="Paid in Cash 💵" sx={{ mt: 2, display: 'block' }} />
                 <Button onClick={handleSubmitSale} variant="contained" color="success" size="large" fullWidth sx={{ mt: 2, py: 1.2 }} disabled={submitSaleMutation.isPending || saleItems.length === 0}>
                     {submitSaleMutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Complete Sale & Generate Receipt'}

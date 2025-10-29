@@ -1,10 +1,10 @@
 const requireRole = (requiredRole) => (req, res, next) => {
     const userRole = req.user?.role || 'unauthenticated'; // Default to 'unauthenticated'
 
-    // Hierarchy check: Admin is highest, then Clerk, then Viewer
+    // Hierarchy map: Admin > Operator > Viewer
     const roleHierarchy = {
         'admin': 3,
-        'clerk': 2,
+        'operator': 2,
         'viewer': 1,
         'unauthenticated': 0 
     };
