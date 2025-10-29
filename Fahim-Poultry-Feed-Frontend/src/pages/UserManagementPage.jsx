@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/api';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import CreateUserModal from '../components/CreateUserModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 // MUI Imports
 import {
@@ -11,26 +12,33 @@ import {
     Select, MenuItem, FormControl, InputLabel, Button
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'; // Added for title icon
-import { useAuth } from '../context/AuthContext'; // Import useAuth to get current user/role
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useAuth } from '../context/AuthContext'; 
 
 // --- API Functions (Client) ---
 const fetchUsers = async () => {
-    // This calls the GET /api/users endpoint which returns all users + their custom claims
     const { data } = await api.get('/users');
     return data;
 };
 
 const updateUserRoleApi = ({ uid, role }) => {
-    // This calls the PATCH /api/users/:uid/role endpoint
     return api.patch(`/users/${uid}/role`, { role });
 };
+
+const deleteUserApi = (uid) => api.delete(`/users/${uid}`).then(res => res.data);
 // -----------------------------
 
 const UserManagementPage = () => {
     const queryClient = useQueryClient();
-    const { user } = useAuth(); // Get the currently logged-in user object
+    const { user } = useAuth(); // Logged-in Admin user object
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    
+    // --- DELETE STATES ---
+    const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
+    // --- END DELETE STATES ---
+
 
     // Fetch all users
     const { 
@@ -45,34 +53,68 @@ const UserManagementPage = () => {
         retry: 1,
     });
 
-    // Mutation for updating a user role
+    // --- MUTATIONS ---
+
+    // 1. Role Update Mutation
     const roleMutation = useMutation({
         mutationFn: updateUserRoleApi,
         onSuccess: (data, variables) => {
             showSuccessToast(`Role for ${variables.uid} updated to ${variables.role}.`);
-            queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); // Refresh the user list
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
             
-            // If the current user's role was changed, force token refresh in AuthContext
             if (user?.uid === variables.uid) { 
-                window.location.reload(); // Simplest way to force full token refresh/re-auth
+                window.location.reload(); 
             }
         },
         onError: (err) => {
             showErrorToast(err, 'Failed to update user role.');
         },
     });
+    
+    // 2. Delete User Mutation
+    const deleteMutation = useMutation({
+        mutationFn: deleteUserApi,
+        onSuccess: () => {
+            showSuccessToast('User account deleted successfully.');
+            queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+            setOpenDeleteConfirm(false);
+            setUserToDelete(null);
+        },
+        onError: (err) => {
+            showErrorToast(err, 'Failed to delete user.');
+            setOpenDeleteConfirm(false);
+            setUserToDelete(null);
+        }
+    });
+
+    // --- HANDLERS ---
 
     const handleRoleChange = (uid) => async (event) => {
         const newRole = event.target.value;
         roleMutation.mutate({ uid, role: newRole });
     };
 
-    // Callback function to refresh list after creating a new user
     const handleUserCreated = () => {
         queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
     };
+    
+    const handleDeleteClick = (targetUser) => {
+        // --- FIX: Correctly compare the target user's UID against the logged-in user's UID ---
+        if (targetUser.uid === user?.uid) { 
+            showErrorToast({ message: "You cannot delete your own account." });
+            return;
+        }
+        
+        setUserToDelete(targetUser);
+        setOpenDeleteConfirm(true);
+    };
 
-    // Helper to capitalize first letter for display
+    const handleConfirmDelete = () => {
+        if (userToDelete) {
+            deleteMutation.mutate(userToDelete.uid);
+        }
+    };
+    
     const formatRoleName = (role) => {
         if (role === 'operator') return 'Operator';
         if (role === 'viewer') return 'Viewer';
@@ -80,7 +122,7 @@ const UserManagementPage = () => {
         return role;
     };
 
-    // Determine the current logged-in user's UID (for safety check in UI)
+
     const currentAdminUid = user?.uid; 
 
 
@@ -129,7 +171,12 @@ const UserManagementPage = () => {
                                     <Typography variant="body2" color="text.secondary">{user.email}</Typography>
                                 </TableCell>
                                 <TableCell>
-                                     <FormControl size="small" sx={{ minWidth: 120 }} disabled={user.uid === currentAdminUid || roleMutation.isPending}>
+                                     <FormControl 
+                                         size="small" 
+                                         sx={{ minWidth: 120 }} 
+                                         // Disable role change if current user or mutation is pending
+                                         disabled={user.uid === currentAdminUid || roleMutation.isPending}
+                                     >
                                         <InputLabel>Role</InputLabel>
                                         <Select
                                             value={user.role}
@@ -145,7 +192,16 @@ const UserManagementPage = () => {
                                 <TableCell>
                                     {user.uid === currentAdminUid ? 
                                         <Typography variant="caption" color="primary"> (You)</Typography> :
-                                        <Button size="small" color="error" variant="outlined" disabled>Delete</Button>
+                                        <Button 
+                                            size="small" 
+                                            color="error" 
+                                            variant="outlined" 
+                                            onClick={() => handleDeleteClick(user)}
+                                            disabled={deleteMutation.isPending || roleMutation.isPending}
+                                            startIcon={<DeleteIcon />}
+                                        >
+                                            Delete
+                                        </Button>
                                     }
                                 </TableCell>
                             </TableRow>
@@ -158,6 +214,18 @@ const UserManagementPage = () => {
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
                 onUserCreated={handleUserCreated}
+            />
+            
+            {/* DELETE CONFIRM DIALOG */}
+            <ConfirmDialog
+                isOpen={openDeleteConfirm}
+                title="Confirm Account Deletion"
+                message={`Are you sure you want to permanently delete the account for ${userToDelete?.email}? This action is irreversible and requires Admin privileges.`}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setOpenDeleteConfirm(false)}
+                confirmButtonText="Delete Permanently"
+                confirmColor="error"
+                isLoading={deleteMutation.isPending}
             />
         </Box>
     );

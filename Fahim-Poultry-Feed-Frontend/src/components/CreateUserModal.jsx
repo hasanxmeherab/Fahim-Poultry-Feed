@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/api';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
-// The import path below is based on your directory structure clarification:
 import { modalStyle } from '../../styles/commonStyles.js'; 
 
 // MUI Imports
@@ -11,7 +10,6 @@ import {
 } from '@mui/material';
 
 const CreateUserModal = ({ isOpen, onClose, onUserCreated }) => {
-    // NOTE: Internal role identifier is 'operator', but the old code still uses 'clerk' as the default/value.
     // We update the state initialization and role options here.
     const [formData, setFormData] = useState({ 
         email: '', 

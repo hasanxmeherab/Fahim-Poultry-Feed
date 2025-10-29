@@ -1,4 +1,3 @@
-// Import necessary packages
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -15,7 +14,7 @@ const productRoutes = require('./routes/productRoutes');
 const saleRoutes = require('./routes/saleRoutes');
 const wholesaleBuyerRoutes = require('./routes/wholesaleBuyerRoutes');
 const wholesaleProductRoutes = require('./routes/wholesaleProductRoutes');
-const profileRoutes = require('./routes/profileRoutes'); // <-- Import the new profile routes
+const profileRoutes = require('./routes/profileRoutes'); 
 const userRoutes = require('./routes/userRoutes');
 
 const admin = require('firebase-admin');
@@ -72,7 +71,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/wholesale-buyers', wholesaleBuyerRoutes);
 app.use('/api/wholesale-products', wholesaleProductRoutes);
-app.use('/api/profile', profileRoutes); // <-- Mount the new profile routes
+app.use('/api/profile', profileRoutes); 
 app.use('/api/users', userRoutes);
 
 // --- Central Error Handling Middleware ---
@@ -101,7 +100,7 @@ const startServer = async () => {
 
         // Connect to MongoDB
         await mongoose.connect(process.env.MONGO_URI);
-        console.log('Successfully connected to MongoDB!'); // Removed Japanese text for clarity
+        console.log('Successfully connected to MongoDB!'); 
 
         // Start the Express server
         app.listen(PORT, () => {

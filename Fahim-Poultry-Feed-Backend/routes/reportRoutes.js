@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getSalesReport, getBatchReport, getDashboardCharts } = require('../controllers/reportController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
-const requireRole = require('../middleware/requireRole'); // <-- 1. IMPORT requireRole
+const requireRole = require('../middleware/requireRole'); 
 
 // --- 2. DEFINE Role Checks ---
 const requireViewer = requireRole('viewer');

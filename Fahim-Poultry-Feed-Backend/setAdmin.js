@@ -1,4 +1,3 @@
-// setAdmin.js
 const admin = require('firebase-admin');
 
 // --- 1. Load Credentials (must match how server.js does it) ---

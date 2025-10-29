@@ -12,7 +12,7 @@ const getAllUsers = async (req, res, next) => {
             uid: userRecord.uid,
             email: userRecord.email,
             displayName: userRecord.displayName,
-            role: userRecord.customClaims?.role || 'viewer', // Default still 'viewer'
+            role: userRecord.customClaims?.role || 'viewer', 
             metadata: { 
                 lastSignInTime: userRecord.metadata.lastSignInTime,
                 creationTime: userRecord.metadata.creationTime
@@ -119,9 +119,31 @@ const createUser = async (req, res, next) => {
     }
 };
 
+// @desc    Delete a user account
+// @route   DELETE /api/users/:uid
+// @access  Private/Admin
+const deleteUser = async (req, res, next) => {
+    const { uid } = req.params;
+    const callerUid = req.user.uid;
+
+    if (uid === callerUid) {
+        const error = new Error("Cannot delete your own account while logged in.");
+        error.statusCode = 400;
+        return next(error);
+    }
+
+    try {
+        await admin.auth().deleteUser(uid);
+        res.status(200).json({ message: `User ${uid} deleted successfully.` });
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        next(new Error('Failed to delete user account.'));
+    }
+};
 
 module.exports = {
     getAllUsers,
     updateUserRole,
     createUser,
+    deleteUser,
 };

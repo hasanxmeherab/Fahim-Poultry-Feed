@@ -7,7 +7,7 @@ const {
     getTransactionById 
 } = require('../controllers/transactionController');
 const firebaseAuthMiddleware = require('../middleware/firebaseAuthMiddleware');
-const requireRole = require('../middleware/requireRole'); // <-- IMPORT requireRole
+const requireRole = require('../middleware/requireRole'); 
 
 // --- DEFINE Role Check ---
 const requireViewer = requireRole('viewer'); // Read access for Viewers, Clerks, and Admins
