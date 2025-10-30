@@ -16,6 +16,7 @@ const wholesaleBuyerRoutes = require('./routes/wholesaleBuyerRoutes');
 const wholesaleProductRoutes = require('./routes/wholesaleProductRoutes');
 const profileRoutes = require('./routes/profileRoutes'); 
 const userRoutes = require('./routes/userRoutes');
+const healthRoutes = require('./routes/healthRoutes');
 
 const admin = require('firebase-admin');
 
@@ -73,6 +74,7 @@ app.use('/api/wholesale-buyers', wholesaleBuyerRoutes);
 app.use('/api/wholesale-products', wholesaleProductRoutes);
 app.use('/api/profile', profileRoutes); 
 app.use('/api/users', userRoutes);
+app.use('/api/health', healthRoutes);
 
 // --- Central Error Handling Middleware ---
 // ... existing error handler code ...
