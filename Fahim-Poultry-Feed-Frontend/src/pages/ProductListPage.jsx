@@ -230,7 +230,14 @@ const ProductListPage = () => {
                                     <TableCell>{editRowId === product._id ? <TextField name="name" value={editFormData.name} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.name}</TableCell>
                                     <TableCell>{editRowId === product._id ? <TextField name="sku" value={editFormData.sku} onChange={handleEditFormChange} size="small" variant="standard" fullWidth /> : product.sku}</TableCell>
                                     <TableCell>{editRowId === product._id ? <TextField type="number" name="price" value={editFormData.price} onChange={handleEditFormChange} size="small" variant="standard" fullWidth inputProps={{ step: "0.01" }} /> : product.price.toFixed(2)}</TableCell>
-                                    <TableCell>{product.quantity}</TableCell>
+                                    <TableCell
+                                        sx={{ 
+                                            color: product.quantity <= 10 ? 'error.main' : 'inherit',
+                                            fontWeight: product.quantity <= 10 ? 'bold' : 'normal'
+                                        }}
+                                    >
+                                        {product.quantity}
+                                    </TableCell>
                                     <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                         {editRowId === product._id ? (
                                             <>
