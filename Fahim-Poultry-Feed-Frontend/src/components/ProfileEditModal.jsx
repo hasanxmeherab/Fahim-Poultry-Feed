@@ -1,29 +1,31 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import api from '../api/api'; // For sending updates to your backend
-import { auth } from '../firebase'; // For potential direct Firebase updates if needed
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Firebase Storage
-import { updateProfile } from "firebase/auth"; // To update Firebase Auth profile client-side (optional but good)
+import api from '../api/api';
+import { auth } from '../firebase';
+import { updateProfile } from "firebase/auth";
 
+// --- REMOVED FIREBASE STORAGE IMPORTS ---
 
 // MUI Imports
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button,
     CircularProgress, Box, Avatar, IconButton, Typography, FormHelperText
 } from '@mui/material';
-// --- ADDED AccountCircle HERE ---
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import AccountCircle from '@mui/icons-material/AccountCircle';
-// --- END ADDITION ---
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 
-// Initialize Firebase Storage (Do this in firebase.js ideally)
-const storage = getStorage(); // Assumes firebase app is initialized
+
+// NOTE: Reading key from environment variable
+const IMAGEBB_API_KEY = import.meta.env.VITE_IMAGEBB_API_KEY;
+
 
 const ProfileEditModal = ({ isOpen, onClose }) => {
     const { user, refreshUserData } = useAuth();
     const [displayName, setDisplayName] = useState('');
-    const [profilePicFile, setProfilePicFile] = useState(null);
+    // Store the actual File object for FormData conversion
+    const [profilePicFile, setProfilePicFile] = useState(null); 
     const [profilePicPreview, setProfilePicPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
@@ -32,22 +34,31 @@ const ProfileEditModal = ({ isOpen, onClose }) => {
     useEffect(() => {
         if (user) {
             setDisplayName(user.displayName || '');
-            setProfilePicPreview(user.photoURL || null); // Show current pic
-            setProfilePicFile(null); // Reset file input
-            setErrors({}); // Clear errors
+            setProfilePicPreview(user.photoURL || null); 
+            setProfilePicFile(null); 
+            setErrors({});
         }
     }, [user, isOpen]);
 
     const handleFileChange = (event) => {
         const file = event.target.files[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { // Example: Limit to 2MB
+            if (file.size > 2 * 1024 * 1024) { 
                 setErrors({ ...errors, photo: 'File size should not exceed 2MB.' });
+                setProfilePicFile(null);
+                setProfilePicPreview(null);
                 return;
             }
-            setProfilePicFile(file);
+            
+            // --- FIX: Store the File object directly ---
+            setProfilePicFile(file); 
+            // --- END FIX ---
+            
             setProfilePicPreview(URL.createObjectURL(file)); // Show preview
-            setErrors({ ...errors, photo: '' }); // Clear error
+            setErrors({ ...errors, photo: '' });
+        } else {
+             setProfilePicFile(null);
+             setProfilePicPreview(user?.photoURL || null); // Revert preview to existing URL
         }
     };
 
@@ -69,23 +80,34 @@ const ProfileEditModal = ({ isOpen, onClose }) => {
         let photoURL = user?.photoURL; // Keep existing URL unless new file is uploaded
 
         try {
-            // 1. Upload new picture to Firebase Storage (if selected)
+            // 1. Upload new picture to ImageBB using FormData (CORS fix)
             if (profilePicFile) {
-                const storageRef = ref(storage, `profilePictures/${user.uid}/${profilePicFile.name}`);
-                const snapshot = await uploadBytes(storageRef, profilePicFile);
-                photoURL = await getDownloadURL(snapshot.ref);
-                console.log('File uploaded, URL:', photoURL);
+                console.log('Attempting ImageBB upload via FormData...');
+                
+                const formData = new FormData();
+                // We append the actual File object here. Axios/browser handles the multipart/form-data headers.
+                formData.append('image', profilePicFile);
+
+                const uploadResponse = await axios.post(
+                    `https://api.imgbb.com/1/upload?key=${IMAGEBB_API_KEY}`,
+                    formData // Sending FormData automatically sets the correct Content-Type header
+                );
+
+                if (uploadResponse.data.success) {
+                    photoURL = uploadResponse.data.data.url; // Get the public image URL
+                    console.log('ImageBB Upload Successful, URL:', photoURL);
+                } else {
+                    throw new Error(uploadResponse.data.error?.message || 'ImageBB upload failed with no specific error.');
+                }
             }
 
             // 2. Update backend (sends name and potentially new photoURL)
-            // Backend should handle updating Firebase Auth user record
-            await api.patch('/profile', { // Assuming endpoint is /api/profile
+            await api.patch('/profile', { 
                 displayName: displayName.trim(),
-                photoURL: photoURL // Send current or new URL
+                photoURL: photoURL 
             });
 
-            // 3. (Optional but recommended) Update Firebase Auth profile on client-side too
-            // This makes the UI update faster without waiting for token refresh/onAuthStateChanged
+            // 3. Update Firebase Auth profile on client-side (for immediate UI update)
             if (auth.currentUser) {
                  await updateProfile(auth.currentUser, {
                      displayName: displayName.trim(),
@@ -94,18 +116,17 @@ const ProfileEditModal = ({ isOpen, onClose }) => {
             }
 
             showSuccessToast('Profile updated successfully!');
-            await refreshUserData(); // Try to refresh context data including claims
-            onClose(); // Close modal
+            await refreshUserData();
+            onClose();
 
         } catch (err) {
             console.error("Profile Update Error:", err);
-            // Handle specific storage errors if needed
-            if (err.code?.startsWith('storage/')) {
-                 showErrorToast(err, 'Failed to upload profile picture.');
-            } else {
-                 showErrorToast(err, 'Failed to update profile.');
-            }
-            setErrors({ general: err.response?.data?.error || err.message || 'Update failed.' });
+            
+            // Handle specific upload errors or API errors
+            const errorMessage = err.message || err.response?.data?.error || 'Failed to update profile.';
+            showErrorToast({ message: errorMessage }, 'Update Failed');
+            
+            setErrors({ general: errorMessage });
         } finally {
             setIsSubmitting(false);
         }
@@ -117,7 +138,7 @@ const ProfileEditModal = ({ isOpen, onClose }) => {
             <DialogContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
                     <Avatar
-                        src={profilePicPreview || undefined} // Use preview or current URL
+                        src={profilePicPreview || undefined}
                         sx={{ width: 100, height: 100, mb: 1 }}
                     >
                         {/* Fallback Initial */}
